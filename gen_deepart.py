@@ -1,5 +1,9 @@
 #!/usr/bin/env python2
 
+from __future__ import division
+from __future__ import with_statement
+from __future__ import print_function
+
 import numpy as np
 import sys
 import skimage.io
@@ -16,10 +20,10 @@ from test_deepart import test_all_gradients
 import measure
 
 
-def setup_classifier(model='vgg',image_dims=(224,224),device_id=0):
+def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
     #deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_deepart.prototxt'
     #weights_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers.caffemodel'
-    #image_dims = (1014/2, 1280/2)
+    #image_dims = (1014//2, 1280//2)
     #mean = (104, 117, 123)
 
     if model=='vgg':
@@ -235,17 +239,33 @@ def deepart_identity(max_iter=1000):
         f.write('{},{},{},{}\n'.format(model,tname,psnr,ssim))
 
   t1=time.time()
-  print 'Finished in {} minutes.'.format((t1-t0)/60.0)
+  print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
-def deepart_extract():
-  model='vggface'
-  #caffe,net,image_dims=setup_classifier(model=model)
-  for ipath in sorted(glob.glob('images/lfw/*/*')):
-    print ipath
+def read_lfw_attributes(ipath='dataset/lfw/lfw_attributes.txt'):
+  # We verify that the first two attributes are person and sequence number
+  # (from which the filename can be constructed).
+  with open(ipath) as f:
+    header=f.readline()
+    attributes=f.readline().split('\t')[1:]
+    assert attributes[0]=='person'
+    assert attributes[1]=='imagenum'
+    return header,attributes,[x.split('\t') for x in f.readlines()]
+
+def lfw_filename(person,seq):
+  person=person.replace(' ','_')
+  return '{}/{}_{:04}.jpg'.format(person,person,int(seq))
+
+def deepart_extract(model='vggface'):
+  _,_,lfwattr=read_lfw_attributes()
+  for x in lfwattr:
+    ipath='images/lfw/{}'.format(lfw_filename(x[0],x[1]))
+    assert os.path.exists(ipath)
+  print('lfw count =',len(lfwattr))
+  caffe,net,image_dims=setup_classifier(model=model)
 
 if __name__ == '__main__':
   args=sys.argv[1:]
 
   #deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
-  deepart_identity()
-  #deepart_extract()
+  #deepart_identity()
+  deepart_extract()
