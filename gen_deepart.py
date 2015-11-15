@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import skimage.io
 import time
+import glob
 import os
 import os.path
 import subprocess
@@ -15,7 +16,7 @@ from test_deepart import test_all_gradients
 import measure
 
 
-def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
+def setup_classifier(model='vgg',image_dims=(224,224),device_id=0):
     #deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_deepart.prototxt'
     #weights_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers.caffemodel'
     #image_dims = (1014/2, 1280/2)
@@ -28,7 +29,7 @@ def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
     elif model=='vggface':
         deployfile_relpath = 'models/vgg_face_caffe/VGG_FACE_deploy_conv.prototxt'
         weights_relpath = 'models/vgg_face_caffe/VGG_FACE.caffemodel'
-        mean = (103.939, 116.779, 123.68)
+        mean = (93.5940, 104.7624, 129.1863)
     else:
         raise ValueError('Unknown CNN model:',model)
     input_scale = 1.0
@@ -236,9 +237,15 @@ def deepart_identity(max_iter=1000):
   t1=time.time()
   print 'Finished in {} minutes.'.format((t1-t0)/60.0)
 
+def deepart_extract():
+  model='vggface'
+  #caffe,net,image_dims=setup_classifier(model=model)
+  for ipath in sorted(glob.glob('images/lfw/*/*')):
+    print ipath
+
 if __name__ == '__main__':
-    args=sys.argv[1:]
+  args=sys.argv[1:]
 
-    #deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
-    deepart_identity()
-
+  #deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
+  deepart_identity()
+  #deepart_extract()
