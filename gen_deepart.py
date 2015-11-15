@@ -301,7 +301,7 @@ def deepart_extract(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1']):
       if i==0:
         print(k,v.shape,v.dtype,v.min(),v.max())
         h5f[k]=h5py.File('data_{}.h5'.format(k),'w')
-        ds[k]=h5f[k].create_dataset('DS',(len(lfwattr),)+v.shape[1:],chunks=(1,)+v.shape[1:],dtype='float32')
+        ds[k]=h5f[k].create_dataset('DS',(len(lfwattr),)+v.shape[1:],chunks=(1,)+v.shape[1:],dtype='float32',compression='gzip',compression_opts=1)
         assert v.shape[0]==M
       ds[k][i*M:i*M+v.shape[0]]=v[:]
     work_done=work_done+v.shape[0]
