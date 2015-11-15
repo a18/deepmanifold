@@ -146,6 +146,19 @@ def deepart_identity(max_iter=1000):
     'images/celebrity_tr/57_Chuck_Lorre_0001.jpg',
   ]
 
+  ipathset = [
+    'images/lfw/Charles_Moose/Charles_Moose_0013.jpg',
+    'images/lfw/Eddy_Merckx/Eddy_Merckx_0002.jpg',
+    'images/lfw/Taufik_Hidayat/Taufik_Hidayat_0001.jpg',
+    'images/lfw/John_Travolta/John_Travolta_0005.jpg',
+    'images/lfw/Hitomi_Soga/Hitomi_Soga_0001.jpg',
+    'images/lfw/Lino_Oviedo/Lino_Oviedo_0001.jpg',
+    'images/lfw/Daniel_Montgomery/Daniel_Montgomery_0001.jpg',
+    'images/lfw/Paul_Burrell/Paul_Burrell_0004.jpg',
+    'images/lfw/David_Beckham/David_Beckham_0031.jpg',
+    'images/lfw/Caroline_Dhavernas/Caroline_Dhavernas_0001.jpg',
+  ]
+
   targetset=[
     #('c5',[ ['', ['conv5_1'], False, 1], ]),
     ('c4',[ ['', ['conv4_1'], False, 1], ]),
