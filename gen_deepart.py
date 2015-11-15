@@ -13,12 +13,31 @@ import os
 import os.path
 import subprocess
 import pipes
+import h5py
+import itertools
 
 from fet_extractor import load_fet_extractor
 from deepart import gen_target_data, optimize_img
 from test_deepart import test_all_gradients
 import measure
 
+def ratelimit(n=0,interval=0.0,timefn=time.time,blocking=False,blockingfn=time.sleep):
+  def d(f):
+    count=[n,interval,timefn,blockingfn]
+    if interval>0.0: count[1]=count[2]()-interval
+    def c(*args,**kwds):
+      if n>0: count[0]=count[0]+1
+      t=count[1]
+      if interval>0.0: t=count[2]()
+      if blocking and interval>t-count[1]:
+        count[3](interval-(t-count[1]))
+        t=interval+count[1]
+      if count[0]>=n and t>=interval+count[1]:
+        count[0]=0
+        count[1]=t
+        f(*args,**kwds)
+    return c
+  return d
 
 def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
     #deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_deepart.prototxt'
@@ -255,13 +274,47 @@ def lfw_filename(person,seq):
   person=person.replace(' ','_')
   return '{}/{}_{:04}.jpg'.format(person,person,int(seq))
 
-def deepart_extract(model='vggface'):
+def deepart_extract(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1']):
+  rlprint=ratelimit(interval=60)(print)
+
   _,_,lfwattr=read_lfw_attributes()
   for x in lfwattr:
     ipath='images/lfw/{}'.format(lfw_filename(x[0],x[1]))
     assert os.path.exists(ipath)
   print('lfw count =',len(lfwattr))
   caffe,net,image_dims=setup_classifier(model=model)
+  h5f={}
+  ds={}
+  def minibatch(x,n):
+    it=iter(x)
+    while True:
+      x=list(itertools.islice(it,n))
+      if len(x)<1: break
+      yield x
+    
+  M=10
+  work_units,work_done,work_t0=len(lfwattr),0,time.time()
+  for i,x in enumerate(minibatch(lfwattr,M)):
+    inputs=['images/lfw/'+lfw_filename(y[0],y[1]) for y in x]
+    F=net.extract_features(inputs,blob_names,auto_reshape=True)
+    for k,v in F.items():
+      if i==0:
+        print(k,v.shape,v.dtype,v.min(),v.max())
+        h5f[k]=h5py.File('data_{}.h5'.format(k),'w')
+        ds[k]=h5f[k].create_dataset('DS',(len(lfwattr),)+v.shape[1:],chunks=(1,)+v.shape[1:],dtype='float32')
+        assert v.shape[0]==M
+      ds[k][i*M:i*M+v.shape[0]]=v[:]
+    work_done=work_done+v.shape[0]
+    rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
+
+  for k in h5f:
+    h5f[k].close()
+
+  # Example reading code:
+  #h5f=h5py.File('data_conv3_1.h5','r')
+  #a=h5f['DS'][0]
+  #print(a.shape,a.dtype,a.min(),a.max()) # should be (256,56,56)
+  #h5f.close()
 
 if __name__ == '__main__':
   args=sys.argv[1:]

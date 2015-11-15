@@ -127,19 +127,23 @@ def def_FeatureExtractor(caffe):
             """
             Reshapes the whole net according to the input
             """
-            print 'Reshaping net to {} input size...'.format(caffe_in.shape)
             in_ = self.inputs[0]
-            self.blobs[in_].reshape(*caffe_in.shape)
-            self.transformer.inputs = {in_: self.blobs[in_].data.shape}
-            self.reshape()
+            if tuple(self.blobs[in_].data.shape)!=tuple(caffe_in.shape):
+              print 'Reshaping net to {} input size...'.format(caffe_in.shape)
+              self.blobs[in_].reshape(*caffe_in.shape)
+              self.transformer.inputs = {in_: self.blobs[in_].data.shape}
+              self.reshape()
 
         def predict(self, filename, auto_reshape=True):
-            if isinstance(filename, np.ndarray):
+            if isinstance(filename, list) or isinstance(filename, tuple):
+                inputs = [caffe.io.load_image(x) for x in filename]
+            elif isinstance(filename, np.ndarray):
                 inputs = [filename]
             else:
                 inputs = [caffe.io.load_image(filename)]
 
             caffe_in = self.preprocess_inputs(inputs, auto_reshape=auto_reshape)
+            #print 'caffe_in', caffe_in.shape
             return self.forward_all(**{self.inputs[0]: caffe_in})
 
         def extract_features(self, filename, blob_names, auto_reshape=True):
