@@ -126,7 +126,8 @@ def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter
         all_target_blob_names, targets, target_data_list
     )
 
-def deepart_autoencoder(max_iter=1000):
+def deepart_identity(max_iter=1000):
+  # Experimenting with making deepart produce the identify function
   t0=time.time()
   display = 100
   # These have to be in the same order as in the network!
@@ -224,5 +225,5 @@ if __name__ == '__main__':
     args=sys.argv[1:]
 
     #deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
-    deepart_autoencoder()
+    deepart_identity()
 
