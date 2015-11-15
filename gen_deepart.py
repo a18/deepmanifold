@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 import numpy as np
 import sys
 import skimage.io
@@ -160,11 +162,11 @@ def deepart_identity(max_iter=1000):
   ]
 
   targetset=[
-    #('c5',[ ['', ['conv5_1'], False, 1], ]),
+    ('c5',[ ['', ['conv5_1'], False, 1], ]),
     ('c4',[ ['', ['conv4_1'], False, 1], ]),
     ('c3',[ ['', ['conv3_1'], False, 1], ]),
-    #('c45',[ ['', ['conv4_1', 'conv5_1'], False, 1], ]),
-    #('c345',[ ['', ['conv3_1', 'conv4_1', 'conv5_1'], False, 1], ]),
+    ('c45',[ ['', ['conv4_1', 'conv5_1'], False, 1], ]),
+    ('c345',[ ['', ['conv3_1', 'conv4_1', 'conv5_1'], False, 1], ]),
     #('c55',[ ['', ['conv5_1', 'conv5_2'], False, 1], ]),
     #('c4455',[ ['', ['conv4_1', 'conv4_2', 'conv5_1', 'conv5_2'], False, 1], ]),
     #('c555',[ ['', ['conv5_1', 'conv5_2', 'conv5_3'], False, 1], ]),
