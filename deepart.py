@@ -57,7 +57,14 @@ def gen_target_data(root_dir, caffe, net, targets):
     target_data_list = []
     for target_i, (target_img_path, target_blob_names, is_gram, _) in enumerate(targets):
         # Load and rescale to [0, 1]
-        target_img = caffe.io.load_image(target_img_path)
+        if isinstance(target_img_path,str):
+            target_img = caffe.io.load_image(target_img_path)
+        else:
+            target_img = target_img_path
+            assert target_img.dtype == np.float32
+            assert target_img.ndim == 3
+            assert target_img.min() >= 0
+            assert target_img.max() <= 1
         caffe_in = net.preprocess_inputs([target_img], auto_reshape=True)
         # Copy image into input blob
         get_data_blob(net).data[...] = caffe_in
@@ -157,7 +164,7 @@ class DisplayFunctor():
         if self.it % self.display == 0:
             print 'Saving image for iteration {}...'.format(self.it)
             save_image_blob(
-                os.path.join(self.root_dir, '{}-it.jpg'.format(self.it)),
+                os.path.join(self.root_dir, '{:06}-it.jpg'.format(self.it)),
                 self.net,
                 np.reshape(x, get_data_blob(self.net).data.shape)[0],
             )
@@ -195,3 +202,8 @@ def optimize_img(init_img, solver_type, solver_param, max_iter, display, root_di
         options=solver_param,
     )
     print opt_res
+
+    data = np.reshape(opt_res.x, get_data_blob(net).data.shape)[0]
+    deproc_img = net.transformer.deprocess(net.inputs[0], data)
+    deproc_img = np.clip(deproc_img, 0, 1)
+    return deproc_img
