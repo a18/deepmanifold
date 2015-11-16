@@ -48,7 +48,7 @@ def minibatch(x,n):
     if len(x)<1: break
     yield x
 
-def setup_classifier(model='vgg',image_dims=(250,250),device_id=1):
+def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
     #deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_deepart.prototxt'
     #weights_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers.caffemodel'
     #image_dims = (1014//2, 1280//2)
@@ -284,6 +284,8 @@ def lfw_filename(person,seq):
   return '{}/{}_{:04}.jpg'.format(person,person,int(seq))
 
 def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
+  # model = vgg | vggface
+  # blob_names = list of blobs to extract
   rlprint=ratelimit(interval=60)(print)
 
   _,_,lfwattr=read_lfw_attributes()
@@ -320,9 +322,9 @@ def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
   #print(a.shape,a.dtype,a.min(),a.max()) # should be (256,56,56)
   #h5f.close()
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None,image_dims=(224,224)):
   # model = vgg | vggface
-  # blob_names = list of blobs to match
+  # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
   # prefix = target features will be read from PREFIX_BLOB.h5
   # subsample = process every N from the dataset
@@ -332,7 +334,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   t0=time.time()
 
   # create network
-  caffe,net,image_dims=setup_classifier(model=model)
+  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims)
 
   # init result dir
   root_dir='results_{}'.format(int(round(t0)))
@@ -349,6 +351,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   print('prefix',prefix)
   print('subsample',subsample)
   print('max_iter',max_iter)
+  print('image_dims',image_dims)
   rlprint=ratelimit(interval=60)(print)
 
   # read features
@@ -442,7 +445,7 @@ if __name__ == '__main__':
   if args[0]=='extract':
     deepart_extract()
   elif args[0]=='reconstruct':
-    deepart_reconstruct(test_indices=[0],subsample=1,max_iter=100)
+    deepart_reconstruct(test_indices=[0],subsample=1,max_iter=100,image_dims=(250,250))
   else:
     raise ValueError('Unknown command')
 
