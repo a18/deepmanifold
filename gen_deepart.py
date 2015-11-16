@@ -48,7 +48,7 @@ def minibatch(x,n):
     if len(x)<1: break
     yield x
 
-def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
+def setup_classifier(model='vgg',image_dims=(250,250),device_id=1):
     #deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_deepart.prototxt'
     #weights_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers.caffemodel'
     #image_dims = (1014//2, 1280//2)
@@ -321,6 +321,13 @@ def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
   #h5f.close()
 
 def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000):
+  # model = vgg | vggface
+  # blob_names = list of blobs to match
+  # blob_weights = cost function weight for each blob
+  # prefix = target features will be read from PREFIX_BLOB.h5
+  # subsample = process every N from the dataset
+  # max_iter = number of iters to optimize (2000+ for good quality)
+
   t0=time.time()
 
   # create network
