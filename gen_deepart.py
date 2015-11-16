@@ -7,6 +7,7 @@ from __future__ import print_function
 import numpy as np
 import inspect
 import ast
+import yaml
 import sys
 skimage_io_import_bug_workaround=sys.argv
 try:
@@ -83,7 +84,17 @@ def filter_args(args,valid_args,help_args,depth=1):
       if isinstance(caller_globals[k],str):
         caller_globals[k]=v
       elif isinstance(caller_globals[k],tuple):
-        caller_globals[k]=tuple(ast.literal_eval(v)) # QQQ big problem here: literal_eval performs arithmetic e.g., 2011-11-11 becomes the integer 1989
+        try:
+          caller_globals[k]=tuple(ast.literal_eval(v))
+        except:
+          # fallback to yaml, it can handle strings without quotes
+          caller_globals[k]=tuple(yaml.load(v))
+      elif isinstance(caller_globals[k],list):
+        try:
+          caller_globals[k]=list(ast.literal_eval(v))
+        except:
+          # fallback to yaml, it can handle strings without quotes
+          caller_globals[k]=list(yaml.load(v))
       else:
         try:
           caller_globals[k]=ast.literal_eval(v) # QQQ big problem here: literal_eval performs arithmetic e.g., 2011-11-11 becomes the integer 1989
@@ -372,7 +383,7 @@ def non_local_means(ipath,w,n,h,opath):
   skimage.io.imsave(opath,b)
   return b
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.04)):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.04),hybrid_names=[],hybrid_weights=[]):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -402,6 +413,8 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   print('model',model)
   print('blob_names',blob_names)
   print('blob_weights',blob_weights)
+  print('hybrid_names',hybrid_names)
+  print('hybrid_weights',hybrid_weights)
   print('prefix',prefix)
   print('subsample',subsample)
   print('max_iter',max_iter)
@@ -426,6 +439,10 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   if test_indices is None:
     test_indices=list(range(N))
 
+  for x in hybrid_names:
+    assert x not in blob_names
+  assert len(hybrid_names)==len(hybrid_weights)
+
   # processing
   psnr=[]
   ssim=[]
@@ -444,6 +461,8 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     all_target_blob_names=list(blob_names)
     targets=[]
     target_data_list=[]
+    for k,v in zip(hybrid_names,hybrid_weights):
+      assert False,'Not implemented'
     for k,v in zip(blob_names,blob_weights):
       if len(targets)>0 and targets[-1][3]==v:
         targets[-1][1].append(k)
@@ -534,10 +553,12 @@ if __name__ == '__main__':
     prefix='data'
     nlm=(3,21,0.04)
     device_id=0
-    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm')
-    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute'}
+    hybrid_names=[]
+    hybrid_weights=[]
+    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights')
+    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm)
+    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights)
   else:
     raise ValueError('Unknown command')
 
