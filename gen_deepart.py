@@ -523,7 +523,7 @@ if __name__ == '__main__':
     params=('model','test_indices','subsample','max_iter','image_dims','prefix','device_id','nlm')
     params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm)
+    deepart_reconstruct(model=model,test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm)
   else:
     raise ValueError('Unknown command')
 
