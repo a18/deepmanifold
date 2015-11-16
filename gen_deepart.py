@@ -320,13 +320,14 @@ def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
   #print(a.shape,a.dtype,a.min(),a.max()) # should be (256,56,56)
   #h5f.close()
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None):
   # model = vgg | vggface
   # blob_names = list of blobs to match
   # blob_weights = cost function weight for each blob
   # prefix = target features will be read from PREFIX_BLOB.h5
   # subsample = process every N from the dataset
   # max_iter = number of iters to optimize (2000+ for good quality)
+  # test_indices = list of dataset indices (corresponds to each entry in h5 files)
 
   t0=time.time()
 
@@ -358,17 +359,21 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
     N=h5f[k]['DS'].shape[0]
   _,_,lfwattr=read_lfw_attributes()
-  assert len(lfwattr)==N
+  if test_indices is None:
+    assert len(lfwattr)==N
+    test_indices=list(range(N))
+  else:
+    assert len(test_indices)==N
 
   # processing
   psnr=[]
   ssim=[]
-  work_units,work_done,work_t0=len(lfwattr),0,time.time()
-  for i,x in enumerate(lfwattr):
-    if i % subsample: continue
+  work_units,work_done,work_t0=len(test_indices),0,time.time()
+  for j,i in enumerate(test_indices):
+    if j % subsample: continue
     np.random.seed(123)
 
-    ipath='images/lfw/'+lfw_filename(x[0],x[1])
+    ipath='images/lfw/'+lfw_filename(lfwattr[i][0],lfwattr[i][1])
     person=lfwattr[i][0]
     seq=lfwattr[i][1]
 
@@ -379,10 +384,10 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     for k,v in zip(blob_names,blob_weights):
       if len(targets)>0 and targets[-1][3]==v:
         targets[-1][1].append(k)
-        target_data_list[-1][k]=h5f[k]['DS'][i]
+        target_data_list[-1][k]=h5f[k]['DS'][j]
       else:
         targets.append((None,[k],False,v))
-        target_data_list.append({k: h5f[k]['DS'][i]})
+        target_data_list.append({k: h5f[k]['DS'][j]})
     #target_data_list = gen_target_data(root_dir, caffe, net, targets)
 
     # Set initial value and reshape net
