@@ -15,6 +15,7 @@ try:
 finally:
   sys.argv=skimage_io_import_bug_workaround
   del skimage_io_import_bug_workaround
+import skimage.restoration
 import time
 import glob
 import os
@@ -365,7 +366,13 @@ def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
   #print(a.shape,a.dtype,a.min(),a.max()) # should be (256,56,56)
   #h5f.close()
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None,image_dims=(224,224),device_id=0):
+def non_local_means(ipath,w,n,h,opath):
+  a=skimage.io.imread(ipath)/255.0
+  b=skimage.restoration.nl_means_denoising(a,w,n,h)
+  skimage.io.imsave(opath,b)
+  return b
+
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.04)):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -458,8 +465,10 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     #print('B',B.shape,B.dtype,B.min(),B.max())
     basename=os.path.splitext(os.path.split(lfw_filename(person,seq))[1])[0]
     skimage.io.imsave('{}/{}.png'.format(root_dir,basename),B)
+    C=non_local_means('{}/{}.png'.format(root_dir,basename),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename))
     caption='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,B,1).mean(),measure.measure_SSIM(A,B,1).mean())
-    subprocess.check_call('convert {ipath} {root_dir}/{basename}.png -size {w}x -font Arial-Italic -pointsize 14 caption:{caption} -append {root_dir}/eval_{basename}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),ipath=pipes.quote(ipath),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
+    caption2='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,C,1).mean(),measure.measure_SSIM(A,C,1).mean())
+    subprocess.check_call('convert {ipath} {root_dir}/{basename}.png {root_dir}/{basename}-nlm.png -size {w}x -font Arial-Italic -pointsize 14 caption:{caption} caption:{caption2} -append {root_dir}/eval_{basename}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),ipath=pipes.quote(ipath),caption=pipes.quote(caption),caption2=pipes.quote(caption2),w=A.shape[1],h=A.shape[0]//10),shell=True)
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
     with open('{}/results.txt'.format(root_dir),'a') as f:
@@ -494,11 +503,12 @@ if __name__ == '__main__':
     max_iter=2000
     image_dims=(224,224)
     prefix='data'
+    nlm=(3,21,0.04)
     device_id=0
-    params=('test_indices','subsample','max_iter','image_dims','prefix','device_id')
-    params_desc={}
+    params=('test_indices','subsample','max_iter','image_dims','prefix','device_id','nlm')
+    params_desc={'nlm': 'Non-local means parameters (window, distance, h_smooth_strength)'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id)
+    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm)
   else:
     raise ValueError('Unknown command')
 
