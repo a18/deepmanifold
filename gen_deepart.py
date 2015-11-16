@@ -5,8 +5,16 @@ from __future__ import with_statement
 from __future__ import print_function
 
 import numpy as np
+import inspect
+import ast
 import sys
-import skimage.io
+skimage_io_import_bug_workaround=sys.argv
+try:
+  sys.argv=sys.argv[:1]
+  import skimage.io
+finally:
+  sys.argv=skimage_io_import_bug_workaround
+  del skimage_io_import_bug_workaround
 import time
 import glob
 import os
@@ -47,6 +55,41 @@ def minibatch(x,n):
     x=list(itertools.islice(it,n))
     if len(x)<1: break
     yield x
+
+def filter_args(args,valid_args,help_args,depth=1):
+  caller_globals=inspect.stack()[depth][0].f_globals
+  if '--help' in args:
+    for x in valid_args:
+      print('--{:30} (Default: {}){}'.format(x,caller_globals[x],'' if x not in help_args else ' '+help_args[x]))
+    sys.exit(1)
+  result=[]
+  for x in args:
+    if not x.startswith('--'):
+      result.append(x)
+      continue
+    if '=' not in x:
+      k=x[2:]
+      if k not in valid_args:
+        print('Unknown option {}'.format('--'+k))
+        sys.exit(1)
+      caller_globals[k]=True
+    else:
+      k,v=x.split('=',1)
+      k=k[2:]
+      if k not in valid_args:
+        print('Unknown option {}'.format('--'+k))
+        sys.exit(1)
+      if isinstance(caller_globals[k],str):
+        caller_globals[k]=v
+      elif isinstance(caller_globals[k],tuple):
+        caller_globals[k]=tuple(ast.literal_eval(v)) # QQQ big problem here: literal_eval performs arithmetic e.g., 2011-11-11 becomes the integer 1989
+      else:
+        try:
+          caller_globals[k]=ast.literal_eval(v) # QQQ big problem here: literal_eval performs arithmetic e.g., 2011-11-11 becomes the integer 1989
+        except:
+          # this does not handle nested strings properly
+          caller_globals[k]=v
+  return result
 
 def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
     #deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_deepart.prototxt'
@@ -445,7 +488,15 @@ if __name__ == '__main__':
   if args[0]=='extract':
     deepart_extract()
   elif args[0]=='reconstruct':
-    deepart_reconstruct(test_indices=[0],subsample=1,max_iter=100,image_dims=(250,250))
+    args=args[1:]
+    test_indices=None
+    subsample=1
+    max_iter=2000
+    image_dims=(224,224)
+    params=('test_indices','subsample','max_iter','image_dims')
+    params_desc={}
+    args=filter_args(args,params,params_desc)
+    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims)
   else:
     raise ValueError('Unknown command')
 
