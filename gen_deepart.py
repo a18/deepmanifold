@@ -283,7 +283,7 @@ def lfw_filename(person,seq):
   person=person.replace(' ','_')
   return '{}/{}_{:04}.jpg'.format(person,person,int(seq))
 
-def deepart_extract(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1']):
+def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
   rlprint=ratelimit(interval=60)(print)
 
   _,_,lfwattr=read_lfw_attributes()
@@ -320,7 +320,7 @@ def deepart_extract(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1']):
   #print(a.shape,a.dtype,a.min(),a.max()) # should be (256,56,56)
   #h5f.close()
 
-def deepart_reconstruct(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000):
   t0=time.time()
 
   # create network
@@ -335,6 +335,12 @@ def deepart_reconstruct(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1
       f.write(' '.join(str(x) for x in args)+'\n')
     sys.stdout.write(' '.join(str(x) for x in args)+'\n')
   print('root_dir',root_dir)
+  print('model',model)
+  print('blob_names',blob_names)
+  print('blob_weights',blob_weights)
+  print('prefix',prefix)
+  print('subsample',subsample)
+  print('max_iter',max_iter)
   rlprint=ratelimit(interval=60)(print)
 
   # read features
@@ -398,18 +404,19 @@ def deepart_reconstruct(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
     with open('{}/results.txt'.format(root_dir),'a') as f:
-      f.write('"{}",{},{},{}\n'.format(person,seq,psnr,ssim))
+      f.write('"{}",{},{},{}\n'.format(person,seq,psnr[-1],ssim[-1]))
 
-    work_done=work_done+1
+    work_done=work_done+1*subsample
     rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
   for k in h5f:
     h5f[k].close()
 
+  print('psnr',psnr)
+  print('ssim',ssim)
   psnr=np.asarray(psnr).mean()
   ssim=np.asarray(ssim).mean()
   with open('{}/results.txt'.format(root_dir),'a') as f:
     f.write(',,{},{}\n'.format(psnr,ssim))
-  print('psnr = {:.4}, ssim = {:.4}'.format(psnr,ssim))
 
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
