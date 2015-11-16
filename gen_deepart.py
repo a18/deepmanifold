@@ -363,7 +363,8 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     assert len(lfwattr)==N
     test_indices=list(range(N))
   else:
-    assert len(test_indices)==N
+    #assert len(test_indices)==N
+    pass # Thanks, matlab
 
   # processing
   psnr=[]
@@ -441,7 +442,7 @@ if __name__ == '__main__':
   if args[0]=='extract':
     deepart_extract()
   elif args[0]=='reconstruct':
-    deepart_reconstruct()
+    deepart_reconstruct(test_indices=[0],subsample=1,max_iter=100)
   else:
     raise ValueError('Unknown command')
 
