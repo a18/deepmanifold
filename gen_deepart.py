@@ -493,10 +493,11 @@ if __name__ == '__main__':
     subsample=1
     max_iter=2000
     image_dims=(224,224)
-    params=('test_indices','subsample','max_iter','image_dims')
+    prefix='data'
+    params=('test_indices','subsample','max_iter','image_dims','prefix')
     params_desc={}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims)
+    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix)
   else:
     raise ValueError('Unknown command')
 
