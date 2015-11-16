@@ -426,5 +426,10 @@ if __name__ == '__main__':
 
   #run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
   #deepart_identity()
-  #deepart_extract()
-  deepart_reconstruct()
+  if args[0]=='extract':
+    deepart_extract()
+  elif args[0]=='reconstruct':
+    deepart_reconstruct()
+  else:
+    raise ValueError('Unknown command')
+
