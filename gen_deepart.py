@@ -320,7 +320,7 @@ def deepart_extract(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1']):
   #print(a.shape,a.dtype,a.min(),a.max()) # should be (256,56,56)
   #h5f.close()
 
-def deepart_reconstruct(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=100):
+def deepart_reconstruct(model='vggface',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000):
   t0=time.time()
 
   # create network
