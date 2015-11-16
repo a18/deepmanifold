@@ -159,4 +159,11 @@ def def_FeatureExtractor(caffe):
 
             return ret
 
+        def get_input_blob(self):
+            """
+            Returns a deep copy of the input blob. Typically, this needs to be deprocessed.
+            """
+            in_ = self.inputs[0]
+            return self.blobs[in_].data.copy()
+
     return FeatureExtractor

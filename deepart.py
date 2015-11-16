@@ -52,7 +52,8 @@ def content_grad(gen_data, target_data):
 
 
 def gen_target_data(root_dir, caffe, net, targets):
-    ensuredir(root_dir)
+    if not root_dir is None:
+        ensuredir(root_dir)
 
     target_data_list = []
     for target_i, (target_img_path, target_blob_names, is_gram, _) in enumerate(targets):
@@ -82,14 +83,14 @@ def gen_target_data(root_dir, caffe, net, targets):
 
         target_data_list.append(target_datas)
 
-        save_image_blob(
-            os.path.join(root_dir, 'target-{}.jpg'.format(target_i)),
-            net,
-            get_data_blob(net).data[0],
-        )
+        if not root_dir is None:
+            save_image_blob(
+                os.path.join(root_dir, 'target-{}.jpg'.format(target_i)),
+                net,
+                get_data_blob(net).data[0],
+            )
 
     return target_data_list
-
 
 def objective_func(x, net, all_target_blob_names, targets, target_data_list):
     # Makes one iteration step and updates the gradient of the data blob
