@@ -365,7 +365,7 @@ def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
   #print(a.shape,a.dtype,a.min(),a.max()) # should be (256,56,56)
   #h5f.close()
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None,image_dims=(224,224)):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None,image_dims=(224,224),device_id=0):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -377,7 +377,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   t0=time.time()
 
   # create network
-  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims)
+  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims,device_id=device_id)
 
   # init result dir
   root_dir='results_{}'.format(int(round(t0)))
@@ -494,10 +494,11 @@ if __name__ == '__main__':
     max_iter=2000
     image_dims=(224,224)
     prefix='data'
-    params=('test_indices','subsample','max_iter','image_dims','prefix')
+    device_id=0
+    params=('test_indices','subsample','max_iter','image_dims','prefix','device_id')
     params_desc={}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix)
+    deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id)
   else:
     raise ValueError('Unknown command')
 
