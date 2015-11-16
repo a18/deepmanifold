@@ -458,11 +458,19 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     seq=lfwattr[i][1]
 
     # generate target list and target features
-    all_target_blob_names=list(blob_names)
+    all_target_blob_names=list(hybrid_names)+list(blob_names)
     targets=[]
     target_data_list=[]
-    for k,v in zip(hybrid_names,hybrid_weights):
-      assert False,'Not implemented'
+    if len(hybrid_weights)>0:
+      F=net.extract_features([ipath],hybrid_names,auto_reshape=True)
+      for k,v in zip(hybrid_names,hybrid_weights):
+        if len(targets)>0 and targets[-1][3]==v:
+          targets[-1][1].append(k)
+          target_data_list[-1][k]=F[k]
+        else:
+          targets.append((None,[k],False,v))
+          target_data_list.append({k: F[k]})
+        print('hybrid',k,v,F[k].shape,F[k].dtype)
     for k,v in zip(blob_names,blob_weights):
       if len(targets)>0 and targets[-1][3]==v:
         targets[-1][1].append(k)
@@ -470,6 +478,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
       else:
         targets.append((None,[k],False,v))
         target_data_list.append({k: h5f[k]['DS'][data_indices[j]]})
+      print('target',k,v,h5f[k]['DS'][data_indices[j]].shape,h5f[k]['DS'][data_indices[j]].dtype)
     #target_data_list = gen_target_data(root_dir, caffe, net, targets)
 
     # Set initial value and reshape net
@@ -523,6 +532,17 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
+def deepart_compare(inputs,name='compare'):
+  t0=time.time()
+  imshape=skimage.io.imread(glob.glob('{}/eval_*'.format(inputs[0]))[0]).shape
+  inputs=[y for x in inputs for y in glob.glob('{}/eval_*'.format(x))]
+  print(inputs)
+  root_dir='results_{}'.format(int(round(t0)))
+  if not os.path.exists(root_dir):
+    os.makedirs(root_dir)
+  subprocess.check_call('montage -geometry {}x{}+6+6 {} {}/{}.png'.format(imshape[1],imshape[0],' '.join(pipes.quote(x) for x in inputs),root_dir,name),shell=True)
+  print('{}/{}.png'.format(root_dir,name))
+
 if __name__ == '__main__':
   args=sys.argv[1:]
 
@@ -559,6 +579,9 @@ if __name__ == '__main__':
     params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network'}
     args=filter_args(args,params,params_desc)
     deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights)
+  elif args[0]=='compare':
+    args=args[1:]
+    deepart_compare(inputs=args)
   else:
     raise ValueError('Unknown command')
 
