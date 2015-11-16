@@ -187,7 +187,7 @@ def optimize_img(init_img, solver_type, solver_param, max_iter, display, root_di
     x0 = np.ravel(init_img).astype(np.float64)
 
     mins = np.full_like(x0, -128)
-    maxs = np.full_like(x0, 128)
+    maxs = np.full_like(x0, 162)
 
     bounds = zip(mins, maxs)
     display_func = DisplayFunctor(net, root_dir, display)

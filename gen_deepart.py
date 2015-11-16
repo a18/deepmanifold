@@ -205,7 +205,7 @@ def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter
         all_target_blob_names, targets, target_data_list
     )
 
-def deepart_identity(max_iter=1000):
+def deepart_identity(image_dims=(224,224),max_iter=1000):
   # Experimenting with making deepart produce the identify function
   t0=time.time()
   display = 100
@@ -252,7 +252,7 @@ def deepart_identity(max_iter=1000):
 
   for model in ['vggface','vgg']:
 
-    caffe, net, image_dims = setup_classifier(model=model)
+    caffe, net, image_dims = setup_classifier(model=model,image_dims=image_dims)
 
     for tname,targets in targetset:
 
@@ -450,7 +450,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     init_img=np.random.normal(loc=0.5,scale=0.1,size=image_dims+(3,))
     deepart.set_data(net,init_img)
     x0=np.ravel(init_img).astype(np.float64)
-    bounds=zip(np.full_like(x0,-128),np.full_like(x0,128))
+    bounds=zip(np.full_like(x0,-128),np.full_like(x0,162))
     solver_type='L-BFGS-B'
     solver_param={'maxiter': max_iter}
     opt_res=scipy.optimize.minimize(deepart.objective_func,x0,args=(net,all_target_blob_names,targets,target_data_list),bounds=bounds,method=solver_type,jac=True,options=solver_param)
@@ -501,11 +501,17 @@ if __name__ == '__main__':
   args=sys.argv[1:]
 
   #run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
-  #deepart_identity()
-  if args[0]=='extract':
+  if args[0]=='identity':
+    args=args[1:]
+    image_dims=(250,250)
+    params=('image_dims')
+    params_desc={}
+    args=filter_args(args,params,params_desc)
+    deepart_identity(image_dims=image_dims)
+  elif args[0]=='extract':
     args=args[1:]
     model='vgg'
-    image_dims=(224,224)
+    image_dims=(250,250)
     params=('model','image_dims')
     params_desc={'model': 'vgg | vggface'}
     args=filter_args(args,params,params_desc)
@@ -516,7 +522,7 @@ if __name__ == '__main__':
     test_indices=None
     subsample=1
     max_iter=2000
-    image_dims=(224,224)
+    image_dims=(250,250)
     prefix='data'
     nlm=(3,21,0.04)
     device_id=0
