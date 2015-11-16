@@ -1,11 +1,13 @@
 import os
 
+import sys
 import numpy as np
 import skimage
 from scipy import optimize
 
 from utils import ensuredir
 
+import totalvariation
 
 def save_image_blob(filepath, net, data):
     deproc_img = net.transformer.deprocess(net.inputs[0], data)
@@ -92,7 +94,7 @@ def gen_target_data(root_dir, caffe, net, targets):
 
     return target_data_list
 
-def objective_func(x, net, all_target_blob_names, targets, target_data_list):
+def objective_func(x, net, all_target_blob_names, targets, target_data_list, tv_lambda, tv_beta):
     # Makes one iteration step and updates the gradient of the data blob
 
     get_data_blob(net).data[...] = np.reshape(x, get_data_blob(net).data.shape)
@@ -141,7 +143,12 @@ def objective_func(x, net, all_target_blob_names, targets, target_data_list):
         target_blob.diff[...] += target_blob_add_diff
         net.backward(start=start, end=end)
 
-    return loss, np.ravel(get_data_blob(net).diff).astype(np.float64)
+    if tv_lambda > 0:
+        tv_loss, tv_grad = totalvariation.tv_norm(x.reshape(get_data_blob(net).data.shape),beta=tv_beta)
+        print tv_loss.shape,tv_loss.dtype,tv_loss.min(),tv_loss.max()
+        return loss + tv_loss*tv_lambda, np.ravel(get_data_blob(net).diff).astype(np.float64) + np.ravel(tv_grad)*tv_lambda
+    else:
+        return loss, np.ravel(get_data_blob(net).diff).astype(np.float64)
 
 
 def get_data_blob(net):
@@ -192,10 +199,12 @@ def optimize_img(init_img, solver_type, solver_param, max_iter, display, root_di
     bounds = zip(mins, maxs)
     display_func = DisplayFunctor(net, root_dir, display)
 
+    tv_lambda = 0.001
+    tv_beta = 2
     opt_res = optimize.minimize(
         objective_func,
         x0,
-        args=(net, all_target_blob_names, targets, target_data_list),
+        args=(net, all_target_blob_names, targets, target_data_list, tv_lambda, tv_beta),
         bounds=bounds,
         method=solver_type,
         jac=True,
