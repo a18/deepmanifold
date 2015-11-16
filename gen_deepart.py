@@ -327,7 +327,7 @@ def lfw_filename(person,seq):
   person=person.replace(' ','_')
   return '{}/{}_{:04}.jpg'.format(person,person,int(seq))
 
-def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
+def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],image_dims=(224,224)):
   # model = vgg | vggface
   # blob_names = list of blobs to extract
   rlprint=ratelimit(interval=60)(print)
@@ -337,7 +337,7 @@ def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1']):
     ipath='images/lfw/{}'.format(lfw_filename(x[0],x[1]))
     assert os.path.exists(ipath)
   print('lfw count =',len(lfwattr))
-  caffe,net,image_dims=setup_classifier(model=model)
+  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims)
   h5f={}
   ds={}
     
@@ -503,9 +503,16 @@ if __name__ == '__main__':
   #run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
   #deepart_identity()
   if args[0]=='extract':
-    deepart_extract()
+    args=args[1:]
+    model='vgg'
+    image_dims=(224,224)
+    params=('model','image_dims')
+    params_desc={'model': 'vgg | vggface'}
+    args=filter_args(args,params,params_desc)
+    deepart_extract(model=model,image_dims=image_dims)
   elif args[0]=='reconstruct':
     args=args[1:]
+    model='vgg'
     test_indices=None
     subsample=1
     max_iter=2000
@@ -513,8 +520,8 @@ if __name__ == '__main__':
     prefix='data'
     nlm=(3,21,0.04)
     device_id=0
-    params=('test_indices','subsample','max_iter','image_dims','prefix','device_id','nlm')
-    params_desc={'nlm': 'Non-local means parameters (window, distance, h_smooth_strength)'}
+    params=('model','test_indices','subsample','max_iter','image_dims','prefix','device_id','nlm')
+    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)'}
     args=filter_args(args,params,params_desc)
     deepart_reconstruct(test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm)
   else:
