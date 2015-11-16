@@ -422,6 +422,8 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   # processing
   psnr=[]
   ssim=[]
+  psnr_nlm=[]
+  ssim_nlm=[]
   work_units,work_done,work_t0=len(test_indices),0,time.time()
   for j,i in enumerate(test_indices):
     if j % subsample: continue
@@ -471,8 +473,10 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     subprocess.check_call('convert {ipath} {root_dir}/{basename}.png {root_dir}/{basename}-nlm.png -size {w}x -font Arial-Italic -pointsize 14 caption:{caption} caption:{caption2} -append {root_dir}/eval_{basename}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),ipath=pipes.quote(ipath),caption=pipes.quote(caption),caption2=pipes.quote(caption2),w=A.shape[1],h=A.shape[0]//10),shell=True)
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
+    psnr_nlm.append(measure.measure_PSNR(A,C,1).mean())
+    ssim_nlm.append(measure.measure_SSIM(A,C,1).mean())
     with open('{}/results.txt'.format(root_dir),'a') as f:
-      f.write('"{}",{},{},{}\n'.format(person,seq,psnr[-1],ssim[-1]))
+      f.write('"{}",{},{},{},{},{}\n'.format(person,seq,psnr[-1],ssim[-1],psnr_nlm[-1],ssim_nlm[-1]))
 
     work_done=work_done+1*subsample
     rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
@@ -483,8 +487,12 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   print('ssim',ssim)
   psnr=np.asarray(psnr).mean()
   ssim=np.asarray(ssim).mean()
+  print('psnr_nlm',psnr_nlm)
+  print('ssim_nlm',ssim_nlm)
+  psnr_nlm=np.asarray(psnr_nlm).mean()
+  ssim_nlm=np.asarray(ssim_nlm).mean()
   with open('{}/results.txt'.format(root_dir),'a') as f:
-    f.write(',,{},{}\n'.format(psnr,ssim))
+    f.write(',,{},{},{},{}\n'.format(psnr,ssim,psnr_nlm,ssim_nlm))
 
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
