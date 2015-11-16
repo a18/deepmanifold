@@ -206,24 +206,24 @@ def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter
     )
 
 def deepart_identity(image_dims=(224,224),max_iter=1000):
-  # Experimenting with making deepart produce the identify function
+  # Experimenting with making deepart produce the identity function
   t0=time.time()
   display = 100
   # These have to be in the same order as in the network!
   all_target_blob_names = ['conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', 'conv4_2', 'conv4_3', 'conv5_1', 'conv5_2', 'conv5_3']
 
-  ipathset = [
-    'images/celebrity_tr/59_Mr._T_0004.jpg',
-    'images/celebrity_tr/56_James_Read_0014.jpg',
-    'images/celebrity_tr/57_Stephen_Lang_0008.jpg',
-    'images/celebrity_tr/50_Denzel_Washington_0013.jpg',
-    'images/celebrity_tr/57_Michael_Bowen_0012.jpg',
-    'images/celebrity_tr/61_Annie_Golden_0006.jpg',
-    'images/celebrity_tr/55_Jamey_Sheridan_0006.jpg',
-    'images/celebrity_tr/54_Hulk_Hogan_0007.jpg',
-    'images/celebrity_tr/56_Gus_Van_Sant_0007.jpg',
-    'images/celebrity_tr/57_Chuck_Lorre_0001.jpg',
-  ]
+  #ipathset = [
+  #  'images/celebrity_tr/59_Mr._T_0004.jpg',
+  #  'images/celebrity_tr/56_James_Read_0014.jpg',
+  #  'images/celebrity_tr/57_Stephen_Lang_0008.jpg',
+  #  'images/celebrity_tr/50_Denzel_Washington_0013.jpg',
+  #  'images/celebrity_tr/57_Michael_Bowen_0012.jpg',
+  #  'images/celebrity_tr/61_Annie_Golden_0006.jpg',
+  #  'images/celebrity_tr/55_Jamey_Sheridan_0006.jpg',
+  #  'images/celebrity_tr/54_Hulk_Hogan_0007.jpg',
+  #  'images/celebrity_tr/56_Gus_Van_Sant_0007.jpg',
+  #  'images/celebrity_tr/57_Chuck_Lorre_0001.jpg',
+  #]
 
   ipathset = [
     'images/lfw/Charles_Moose/Charles_Moose_0013.jpg',
@@ -372,7 +372,7 @@ def non_local_means(ipath,w,n,h,opath):
   skimage.io.imsave(opath,b)
   return b
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1000,max_iter=1000,test_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.04)):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.04)):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -380,6 +380,10 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   # subsample = process every N from the dataset
   # max_iter = number of iters to optimize (2000+ for good quality)
   # test_indices = list of dataset indices (corresponds to each entry in h5 files)
+  # data_indices = list of h5 indices (for computing subsets of the data)
+  #   Example: data_indices=[0,3], test_indices=[4,2] means compute with the first
+  #   and fourth features in the h5 file and compare against the fifth and third
+  #   images in the dataset.
 
   t0=time.time()
 
@@ -412,12 +416,15 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
     N=h5f[k]['DS'].shape[0]
   _,_,lfwattr=read_lfw_attributes()
-  if test_indices is None:
-    assert len(lfwattr)==N
-    test_indices=list(range(N))
+  if data_indices is None:
+    # assume you want to process everything
+    data_indices=list(range(N))
   else:
-    #assert len(test_indices)==N
-    pass # Thanks, matlab
+    # require that you specify the data -> dataset mapping
+    assert not test_indices is None
+    assert len(data_indices)==len(test_indices)
+  if test_indices is None:
+    test_indices=list(range(N))
 
   # processing
   psnr=[]
@@ -440,10 +447,10 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     for k,v in zip(blob_names,blob_weights):
       if len(targets)>0 and targets[-1][3]==v:
         targets[-1][1].append(k)
-        target_data_list[-1][k]=h5f[k]['DS'][j]
+        target_data_list[-1][k]=h5f[k]['DS'][data_indices[j]]
       else:
         targets.append((None,[k],False,v))
-        target_data_list.append({k: h5f[k]['DS'][j]})
+        target_data_list.append({k: h5f[k]['DS'][data_indices[j]]})
     #target_data_list = gen_target_data(root_dir, caffe, net, targets)
 
     # Set initial value and reshape net
@@ -520,16 +527,17 @@ if __name__ == '__main__':
     args=args[1:]
     model='vgg'
     test_indices=None
+    data_indices=None
     subsample=1
     max_iter=2000
     image_dims=(250,250)
     prefix='data'
     nlm=(3,21,0.04)
     device_id=0
-    params=('model','test_indices','subsample','max_iter','image_dims','prefix','device_id','nlm')
-    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)'}
+    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm')
+    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(model=model,test_indices=test_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm)
+    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm)
   else:
     raise ValueError('Unknown command')
 
