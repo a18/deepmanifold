@@ -415,7 +415,7 @@ def non_local_means(ipath,w,n,h,opath):
   skimage.io.imsave(opath,b)
   return b
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw'):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -454,6 +454,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   print('tv_lambda',tv_lambda)
   print('tv_beta',tv_beta)
   print('gaussian_init',gaussian_init)
+  print('dataset',dataset)
   rlprint=ratelimit(interval=60)(print)
 
   # read features
@@ -463,7 +464,9 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     h5f[k]=h5py.File('{}_{}.h5'.format(prefix,k),'r')
     print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
     N=h5f[k]['DS'].shape[0]
-  _,_,lfwattr=read_lfw_attributes()
+  #_,_,lfwattr=read_lfw_attributes()
+  with open('dataset/{}.txt'.format(dataset)) as f:
+    original_names=[x.strip() for x in f.readlines()]
   if data_indices is None:
     # assume you want to process everything
     data_indices=list(range(N))
@@ -486,9 +489,12 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     if j % subsample: continue
     np.random.seed(123)
 
-    ipath='images/lfw/'+lfw_filename(lfwattr[i][0],lfwattr[i][1])
-    person=lfwattr[i][0]
-    seq=lfwattr[i][1]
+    #ipath='images/lfw/'+lfw_filename(lfwattr[i][0],lfwattr[i][1])
+    ipath='images/'+original_names[i]
+    #person=lfwattr[i][0]
+    #seq=lfwattr[i][1]
+    #basename=os.path.splitext(os.path.split(lfw_filename(person,seq))[1])[0]
+    basename=os.path.splitext(os.path.split(ipath)[1])[0]
 
     # generate target list and target features
     all_target_blob_names=list(hybrid_names)+list(blob_names)
@@ -524,7 +530,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     x0=net.get_input_blob().ravel().astype(np.float64)
     bounds=zip(np.full_like(x0,-128),np.full_like(x0,162))
     solver_type='L-BFGS-B'
-    solver_param={'maxiter': max_iter}
+    solver_param={'maxiter': max_iter, 'iprint': -1}
     opt_res=scipy.optimize.minimize(deepart.objective_func,x0,args=(net,all_target_blob_names,targets,target_data_list,tv_lambda,tv_beta),bounds=bounds,method=solver_type,jac=True,options=solver_param)
     #print('opt_res',opt_res)
     #print('opt_res.x',opt_res.x.shape,opt_res.x.dtype)
@@ -537,7 +543,6 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
 
     #print('A',A.shape,A.dtype,A.min(),A.max())
     #print('B',B.shape,B.dtype,B.min(),B.max())
-    basename=os.path.splitext(os.path.split(lfw_filename(person,seq))[1])[0]
     skimage.io.imsave('{}/{}-original.png'.format(root_dir,basename),A)
     skimage.io.imsave('{}/{}.png'.format(root_dir,basename),B)
     C=non_local_means('{}/{}.png'.format(root_dir,basename),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename))
@@ -546,7 +551,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
     with open('{}/results.txt'.format(root_dir),'a') as f:
-      f.write('"{}",{},{},{}\n'.format(person,seq,psnr[-1],ssim[-1]))
+      f.write('"{}",{},{}\n'.format(basename,psnr[-1],ssim[-1]))
 
     work_done=work_done+1*subsample
     rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
@@ -558,7 +563,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   psnr=np.asarray(psnr).mean()
   ssim=np.asarray(ssim).mean()
   with open('{}/results.txt'.format(root_dir),'a') as f:
-    f.write(',,{},{}\n'.format(psnr,ssim))
+    f.write(',{},{}\n'.format(psnr,ssim))
 
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
@@ -580,7 +585,7 @@ if __name__ == '__main__':
   #run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
   if args[0]=='identity':
     args=args[1:]
-    image_dims=(250,250)
+    image_dims=(125,125)
     params=('image_dims')
     params_desc={}
     args=filter_args(args,params,params_desc)
@@ -588,7 +593,7 @@ if __name__ == '__main__':
   elif args[0]=='extractlfw':
     args=args[1:]
     model='vgg'
-    image_dims=(250,250)
+    image_dims=(125,125)
     params=('model','image_dims')
     params_desc={'model': 'vgg | vggface'}
     args=filter_args(args,params,params_desc)
@@ -596,7 +601,7 @@ if __name__ == '__main__':
   elif args[0]=='extract':
     args=args[1:]
     model='vgg'
-    image_dims=(250,250)
+    image_dims=(125,125)
     prefix='data'
     params=('model','image_dims','prefix')
     params_desc={'model': 'vgg | vggface'}
@@ -609,7 +614,7 @@ if __name__ == '__main__':
     data_indices=None
     subsample=1
     max_iter=2000
-    image_dims=(250,250)
+    image_dims=(125,125)
     prefix='data'
     nlm=(3,21,0.03)
     device_id=0
@@ -618,8 +623,9 @@ if __name__ == '__main__':
     tv_lambda=0.001
     tv_beta=2
     gaussian_init=False
-    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init')
-    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight'}
+    dataset='lfw'
+    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init','dataset')
+    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight', 'dataset': 'Original image filenames read from dataset/DATASET.txt'}
     args=filter_args(args,params,params_desc)
     deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init)
   elif args[0]=='compare':

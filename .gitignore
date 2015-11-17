@@ -58,3 +58,4 @@ target/
 
 results_*
 *.h5
+images/*
