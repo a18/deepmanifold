@@ -568,6 +568,21 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
+def deepart_pca(prefix='data',blob_names=['conv3_1','conv4_1','conv5_1']):
+#def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc=''):
+  t0=time.time()
+  # read features
+  h5f={}
+  for k in blob_names:
+    assert os.path.exists('{}_{}.h5'.format(prefix,k))
+    h5f[k]=h5py.File('{}_{}.h5'.format(prefix,k),'r')
+    print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
+    N=h5f[k]['DS'].shape[0]
+  print('N',N)
+
+  t1=time.time()
+  print('Finished in {} minutes.'.format((t1-t0)/60.0))
+
 def deepart_compare(inputs,name='compare'):
   t0=time.time()
   imshape=skimage.io.imread(glob.glob('{}/eval_*'.format(inputs[0]))[0]).shape
@@ -607,6 +622,8 @@ if __name__ == '__main__':
     params_desc={'model': 'vgg | vggface'}
     args=filter_args(args,params,params_desc)
     deepart_extract(args[0],model=model,image_dims=image_dims,prefix=prefix)
+  elif args[0]=='pca':
+    deepart_pca()
   elif args[0]=='reconstruct':
     args=args[1:]
     model='vgg'
