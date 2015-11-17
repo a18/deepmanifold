@@ -4,3 +4,6 @@ scikit-image
 protobuf
 matplotlib
 seaborn
+pyyaml
+h5py
+scipy

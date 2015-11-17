@@ -24,5 +24,5 @@ echo "Copying model file..."
 cp -r models/VGG_CNN_19 ../caffe/models/
 echo "Downloading weight file..."
 wget http://bethgelab.org/media/uploads/deeptextures/vgg_normalised.caffemodel -P ../caffe/models/VGG_CNN_19/
-echo "Done. Run \"python gen_deepart.py\" to generate images."
+echo "Done."
 
