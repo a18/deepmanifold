@@ -415,7 +415,7 @@ def non_local_means(ipath,w,n,h,opath):
   skimage.io.imsave(opath,b)
   return b
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw'):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc=''):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -434,7 +434,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims,device_id=device_id)
 
   # init result dir
-  root_dir='results_{}'.format(int(round(t0)))
+  root_dir='results_{}'.format(int(round(t0))) if desc=='' else 'results_{}_{}'.format(int(round(t0)),desc)
   if not os.path.exists(root_dir):
     os.makedirs(root_dir)
   def print(*args):
@@ -551,7 +551,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
     with open('{}/results.txt'.format(root_dir),'a') as f:
-      f.write('"{}",{},{}\n'.format(basename,psnr[-1],ssim[-1]))
+      f.write('"{}",{},{},{}\n'.format(basename,i,psnr[-1],ssim[-1]))
 
     work_done=work_done+1*subsample
     rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
@@ -613,7 +613,7 @@ if __name__ == '__main__':
     test_indices=None
     data_indices=None
     subsample=1
-    max_iter=2000
+    max_iter=3000
     image_dims=(125,125)
     prefix='data'
     nlm=(3,21,0.03)
@@ -624,10 +624,11 @@ if __name__ == '__main__':
     tv_beta=2
     gaussian_init=False
     dataset='lfw'
-    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init','dataset')
-    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight', 'dataset': 'Original image filenames read from dataset/DATASET.txt'}
+    desc=''
+    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init','dataset','desc')
+    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight', 'dataset': 'Original image filenames read from dataset/DATASET.txt', 'desc': 'Will be appended to the results directory name'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init)
+    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init,desc=desc)
   elif args[0]=='compare':
     args=args[1:]
     deepart_compare(inputs=args)
