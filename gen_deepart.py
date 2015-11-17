@@ -17,6 +17,7 @@ finally:
   sys.argv=skimage_io_import_bug_workaround
   del skimage_io_import_bug_workaround
 import skimage.restoration
+import sklearn.decomposition
 import time
 import glob
 import os
