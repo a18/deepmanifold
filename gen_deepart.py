@@ -189,7 +189,7 @@ def run_deepart(ipath1='images/starry_night.jpg',ipath2='images/tuebingen.jpg',m
     skimage.io.imsave('{}/eval_original.png'.format(root_dir),A)
     skimage.io.imsave('{}/eval_best.png'.format(root_dir),D)
     skimage.io.imsave('{}/eval_actual.png'.format(root_dir),Dhat)
-    caption='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,Dhat,1).mean(),measure.measure_SSIM(A,Dhat,1).mean())
+    caption='psnr {:.4}, ssim {:.4}'.format(measure.measure_PSNR(A,Dhat,1).mean(),measure.measure_SSIM(A,Dhat,1).mean())
     subprocess.check_call('convert {root_dir}/eval_best.png {root_dir}/eval_actual.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval.png'.format(root_dir=pipes.quote(root_dir),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
 
 def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter=2000):
@@ -311,7 +311,7 @@ def deepart_identity(image_dims=(224,224),max_iter=1000):
         skimage.io.imsave('{}/eval_original.png'.format(root_dir),A)
         skimage.io.imsave('{}/eval_best.png'.format(root_dir),D)
         skimage.io.imsave('{}/eval_actual.png'.format(root_dir),Dhat)
-        caption='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,Dhat,1).mean(),measure.measure_SSIM(A,Dhat,1).mean())
+        caption='psnr {:.4}, ssim {:.4}'.format(measure.measure_PSNR(A,Dhat,1).mean(),measure.measure_SSIM(A,Dhat,1).mean())
         subprocess.check_call('convert {root_dir}/eval_best.png {root_dir}/eval_actual.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval.png'.format(root_dir=pipes.quote(root_dir),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
         psnr.append(measure.measure_PSNR(A,Dhat,1).mean())
         ssim.append(measure.measure_SSIM(A,Dhat,1).mean())
@@ -509,7 +509,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     skimage.io.imsave('{}/{}-original.png'.format(root_dir,basename),A)
     skimage.io.imsave('{}/{}.png'.format(root_dir,basename),B)
     C=non_local_means('{}/{}.png'.format(root_dir,basename),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename))
-    caption='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,B,1).mean(),measure.measure_SSIM(A,B,1).mean())
+    caption='psnr {:.4}, ssim {:.4}'.format(measure.measure_PSNR(A,B,1).mean(),measure.measure_SSIM(A,B,1).mean())
     subprocess.check_call('convert {root_dir}/{basename}-original.png {root_dir}/{basename}.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval_{basename}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),ipath=pipes.quote(ipath),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
