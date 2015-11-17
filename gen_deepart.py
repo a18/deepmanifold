@@ -338,7 +338,39 @@ def lfw_filename(person,seq):
   person=person.replace(' ','_')
   return '{}/{}_{:04}.jpg'.format(person,person,int(seq))
 
-def deepart_extract(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],image_dims=(224,224)):
+def deepart_extract(ipath,prefix='data',model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],image_dims=(224,224)):
+  # ipath = text file listing one image per line
+  # model = vgg | vggface
+  # blob_names = list of blobs to extract
+  rlprint=ratelimit(interval=60)(print)
+
+  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims)
+  h5f={}
+  ds={}
+    
+  # minibatch processing
+  M=10
+  with open(ipath) as f:
+    S=[x.strip() for x in f.readlines()]
+  print('count =',len(S))
+  work_units,work_done,work_t0=len(S),0,time.time()
+  for i,x in enumerate(minibatch(S,M)):
+    inputs=[os.path.join('images',y) for y in x]
+    F=net.extract_features(inputs,blob_names,auto_reshape=True)
+    for k,v in F.items():
+      if i==0:
+        print(k,v.shape,v.dtype,v.min(),v.max())
+        h5f[k]=h5py.File('{}_{}.h5'.format(prefix,k),'w')
+        ds[k]=h5f[k].create_dataset('DS',(len(S),)+v.shape[1:],chunks=(1,)+v.shape[1:],dtype='float32',compression='gzip',compression_opts=1)
+        assert v.shape[0]==min(M,len(S))
+      ds[k][i*M:i*M+v.shape[0]]=v[:]
+    work_done=work_done+v.shape[0]
+    rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
+
+  for k in h5f:
+    h5f[k].close()
+
+def deepart_extractlfw(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],image_dims=(224,224)):
   # model = vgg | vggface
   # blob_names = list of blobs to extract
   rlprint=ratelimit(interval=60)(print)
@@ -553,14 +585,23 @@ if __name__ == '__main__':
     params_desc={}
     args=filter_args(args,params,params_desc)
     deepart_identity(image_dims=image_dims)
-  elif args[0]=='extract':
+  elif args[0]=='extractlfw':
     args=args[1:]
     model='vgg'
     image_dims=(250,250)
     params=('model','image_dims')
     params_desc={'model': 'vgg | vggface'}
     args=filter_args(args,params,params_desc)
-    deepart_extract(model=model,image_dims=image_dims)
+    deepart_extractlfw(model=model,image_dims=image_dims)
+  elif args[0]=='extract':
+    args=args[1:]
+    model='vgg'
+    image_dims=(250,250)
+    prefix='data'
+    params=('model','image_dims','prefix')
+    params_desc={'model': 'vgg | vggface'}
+    args=filter_args(args,params,params_desc)
+    deepart_extract(args[0],model=model,image_dims=image_dims,prefix=prefix)
   elif args[0]=='reconstruct':
     args=args[1:]
     model='vgg'

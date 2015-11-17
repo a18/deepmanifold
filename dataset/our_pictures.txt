@@ -1,0 +1,7 @@
+our_pictures/jake.jpg
+our_pictures/john.jpg
+our_pictures/kavita.jpg
+our_pictures/kilian.jpg
+our_pictures/matt.jpg
+our_pictures/paul.jpg
+our_pictures/yixuan.jpg
