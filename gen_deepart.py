@@ -628,7 +628,7 @@ if __name__ == '__main__':
     params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init','dataset','desc')
     params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight', 'dataset': 'Original image filenames read from dataset/DATASET.txt', 'desc': 'Will be appended to the results directory name'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init,desc=desc)
+    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init,dataset=dataset,desc=desc)
   elif args[0]=='compare':
     args=args[1:]
     deepart_compare(inputs=args)
