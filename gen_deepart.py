@@ -190,7 +190,7 @@ def run_deepart(ipath1='images/starry_night.jpg',ipath2='images/tuebingen.jpg',m
     skimage.io.imsave('{}/eval_best.png'.format(root_dir),D)
     skimage.io.imsave('{}/eval_actual.png'.format(root_dir),Dhat)
     caption='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,Dhat,1).mean(),measure.measure_SSIM(A,Dhat,1).mean())
-    subprocess.check_call('convert {root_dir}/eval_best.png {root_dir}/eval_actual.png -size {w}x -font Arial-Italic -pointsize 14 caption:{caption} -append {root_dir}/eval.png'.format(root_dir=pipes.quote(root_dir),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
+    subprocess.check_call('convert {root_dir}/eval_best.png {root_dir}/eval_actual.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval.png'.format(root_dir=pipes.quote(root_dir),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
 
 def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter=2000):
     targets = [
@@ -312,7 +312,7 @@ def deepart_identity(image_dims=(224,224),max_iter=1000):
         skimage.io.imsave('{}/eval_best.png'.format(root_dir),D)
         skimage.io.imsave('{}/eval_actual.png'.format(root_dir),Dhat)
         caption='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,Dhat,1).mean(),measure.measure_SSIM(A,Dhat,1).mean())
-        subprocess.check_call('convert {root_dir}/eval_best.png {root_dir}/eval_actual.png -size {w}x -font Arial-Italic -pointsize 14 caption:{caption} -append {root_dir}/eval.png'.format(root_dir=pipes.quote(root_dir),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
+        subprocess.check_call('convert {root_dir}/eval_best.png {root_dir}/eval_actual.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval.png'.format(root_dir=pipes.quote(root_dir),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
         psnr.append(measure.measure_PSNR(A,Dhat,1).mean())
         ssim.append(measure.measure_SSIM(A,Dhat,1).mean())
   
@@ -383,7 +383,7 @@ def non_local_means(ipath,w,n,h,opath):
   skimage.io.imsave(opath,b)
   return b
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.04),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -421,6 +421,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   print('image_dims',image_dims)
   print('tv_lambda',tv_lambda)
   print('tv_beta',tv_beta)
+  print('gaussian_init',gaussian_init)
   rlprint=ratelimit(interval=60)(print)
 
   # read features
@@ -448,8 +449,6 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   # processing
   psnr=[]
   ssim=[]
-  psnr_nlm=[]
-  ssim_nlm=[]
   work_units,work_done,work_t0=len(test_indices),0,time.time()
   for j,i in enumerate(test_indices):
     if j % subsample: continue
@@ -484,9 +483,13 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     #target_data_list = gen_target_data(root_dir, caffe, net, targets)
 
     # Set initial value and reshape net
-    init_img=np.random.normal(loc=0.5,scale=0.1,size=image_dims+(3,))
+    if gaussian_init:
+      init_img=np.random.normal(loc=0.5,scale=0.1,size=image_dims+(3,))
+    else:
+      init_img=caffe.io.load_image(ipath)
     deepart.set_data(net,init_img)
-    x0=np.ravel(init_img).astype(np.float64)
+    #x0=np.ravel(init_img).astype(np.float64)
+    x0=net.get_input_blob().ravel().astype(np.float64)
     bounds=zip(np.full_like(x0,-128),np.full_like(x0,162))
     solver_type='L-BFGS-B'
     solver_param={'maxiter': max_iter}
@@ -498,22 +501,20 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     deproc_img=net.transformer.deprocess(net.inputs[0],data)
     A=caffe.io.load_image(ipath)
     B=np.clip(deproc_img,0,1)
-    B=caffe.io.resize_image(B,A.shape)
+    A=caffe.io.resize_image(A,B.shape)
 
     #print('A',A.shape,A.dtype,A.min(),A.max())
     #print('B',B.shape,B.dtype,B.min(),B.max())
     basename=os.path.splitext(os.path.split(lfw_filename(person,seq))[1])[0]
+    skimage.io.imsave('{}/{}-original.png'.format(root_dir,basename),A)
     skimage.io.imsave('{}/{}.png'.format(root_dir,basename),B)
     C=non_local_means('{}/{}.png'.format(root_dir,basename),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename))
     caption='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,B,1).mean(),measure.measure_SSIM(A,B,1).mean())
-    caption2='psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,C,1).mean(),measure.measure_SSIM(A,C,1).mean())
-    subprocess.check_call('convert {ipath} {root_dir}/{basename}.png {root_dir}/{basename}-nlm.png -size {w}x -font Arial-Italic -pointsize 14 caption:{caption} caption:{caption2} -append {root_dir}/eval_{basename}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),ipath=pipes.quote(ipath),caption=pipes.quote(caption),caption2=pipes.quote(caption2),w=A.shape[1],h=A.shape[0]//10),shell=True)
+    subprocess.check_call('convert {root_dir}/{basename}-original.png {root_dir}/{basename}.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval_{basename}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),ipath=pipes.quote(ipath),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
-    psnr_nlm.append(measure.measure_PSNR(A,C,1).mean())
-    ssim_nlm.append(measure.measure_SSIM(A,C,1).mean())
     with open('{}/results.txt'.format(root_dir),'a') as f:
-      f.write('"{}",{},{},{},{},{}\n'.format(person,seq,psnr[-1],ssim[-1],psnr_nlm[-1],ssim_nlm[-1]))
+      f.write('"{}",{},{},{}\n'.format(person,seq,psnr[-1],ssim[-1]))
 
     work_done=work_done+1*subsample
     rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
@@ -524,12 +525,8 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   print('ssim',ssim)
   psnr=np.asarray(psnr).mean()
   ssim=np.asarray(ssim).mean()
-  print('psnr_nlm',psnr_nlm)
-  print('ssim_nlm',ssim_nlm)
-  psnr_nlm=np.asarray(psnr_nlm).mean()
-  ssim_nlm=np.asarray(ssim_nlm).mean()
   with open('{}/results.txt'.format(root_dir),'a') as f:
-    f.write(',,{},{},{},{}\n'.format(psnr,ssim,psnr_nlm,ssim_nlm))
+    f.write(',,{},{}\n'.format(psnr,ssim))
 
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
@@ -573,16 +570,17 @@ if __name__ == '__main__':
     max_iter=2000
     image_dims=(250,250)
     prefix='data'
-    nlm=(3,21,0.04)
+    nlm=(3,21,0.03)
     device_id=0
     hybrid_names=[]
     hybrid_weights=[]
     tv_lambda=0.001
     tv_beta=2
-    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta')
+    gaussian_init=False
+    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init')
     params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta)
+    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init)
   elif args[0]=='compare':
     args=args[1:]
     deepart_compare(inputs=args)

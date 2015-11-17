@@ -145,7 +145,6 @@ def objective_func(x, net, all_target_blob_names, targets, target_data_list, tv_
 
     if tv_lambda > 0:
         tv_loss, tv_grad = totalvariation.tv_norm(x.reshape(get_data_blob(net).data.shape),beta=tv_beta)
-        print tv_loss.shape,tv_loss.dtype,tv_loss.min(),tv_loss.max()
         return loss + tv_loss*tv_lambda, np.ravel(get_data_blob(net).diff).astype(np.float64) + np.ravel(tv_grad)*tv_lambda
     else:
         return loss, np.ravel(get_data_blob(net).diff).astype(np.float64)
