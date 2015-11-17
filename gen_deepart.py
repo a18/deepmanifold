@@ -618,8 +618,8 @@ if __name__ == '__main__':
     prefix='data'
     nlm=(3,21,0.03)
     device_id=0
-    hybrid_names=[]
-    hybrid_weights=[]
+    hybrid_names=['conv1_1','conv2_1']
+    hybrid_weights=[0.02,0.02]
     tv_lambda=0.001
     tv_beta=2
     gaussian_init=False
