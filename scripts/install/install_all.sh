@@ -1,4 +1,6 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+
+set -e
 
 DIR="$( cd "$(dirname "$0")" ; pwd -P )"
 ROOT_DIR="$DIR/../../"
@@ -20,9 +22,23 @@ make all -j8
 make pycaffe
 
 cd $ROOT_DIR
-echo "Copying model file..."
+echo "Copying model file ..."
 cp -r models/VGG_CNN_19 ../caffe/models/
-echo "Downloading weight file..."
-wget http://bethgelab.org/media/uploads/deeptextures/vgg_normalised.caffemodel -P ../caffe/models/VGG_CNN_19/
+
+cd $ROOT_DIR
+if [ ! -f "../caffe/models/VGG_CNN_19/vgg_normalised.caffemodel" ]; then
+  echo "Downloading weight file ..."
+  wget http://bethgelab.org/media/uploads/deeptextures/vgg_normalised.caffemodel -P ../caffe/models/VGG_CNN_19/
+fi
+
+cd $ROOT_DIR/images
+if [ ! -d "lfw" ]; then
+  echo "Downloading LFW images ..."
+  wget http://vis-www.cs.umass.edu/lfw/lfw.tgz
+  tar xzf lfw.tgz
+  rm lfw.tgz
+fi
+
+cd $ROOT_DIR
 echo "Done."
 
