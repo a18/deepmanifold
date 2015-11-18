@@ -4,8 +4,10 @@ from __future__ import division
 from __future__ import with_statement
 from __future__ import print_function
 
-import numpy as np
+import numpy
+np=numpy
 import inspect
+import resource
 import ast
 import yaml
 import sys
@@ -18,6 +20,8 @@ finally:
   del skimage_io_import_bug_workaround
 import skimage.restoration
 import sklearn.decomposition
+import scipy.sparse
+import pickle
 import time
 import glob
 import os
@@ -33,6 +37,7 @@ from deepart import gen_target_data, optimize_img
 from test_deepart import test_all_gradients
 import measure
 import deepart
+import matchmmd
 
 def ratelimit(n=0,interval=0.0,timefn=time.time,blocking=False,blockingfn=time.sleep):
   def d(f):
@@ -569,8 +574,65 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
-def deepart_pca(prefix='data',blob_names=['conv4_1','conv5_1']):
+def attr_pairs(attr,index,k):
+  i=list(range(len(attr)))
+  if index<0:
+    i.sort(key=lambda x: float(attr[x][-index]))
+  else:
+    i.sort(key=lambda x: -float(attr[x][index]))
+  return i[:k],i[-k:]
+
+def deepart_match(prefix='data',blob_names=['conv3_1','conv4_1','conv5_1'],method='matlab',weights=[1e-6]):
+  t0=time.time()
+
+  data=np.load('pca.npz')
+  U=data['U']
+  T=data['T']
+  mu=data['mu']
+  print('U',U.shape,U.dtype,U.min(),U.max())
+  print('T',T.shape,T.dtype,T.min(),T.max())
+  print('mu',mu.shape,mu.dtype,mu.min(),mu.max())
+
+  _,_,lfwattr=read_lfw_attributes()
+  # 8 is Youth
+  source_indices,target_indices=attr_pairs(lfwattr,8,2000)
+  print('source',source_indices[:5])
+  print('target',target_indices[:5])
+
+  test_indices=[0]
+  P=T[source_indices].astype(np.float64)
+  Q=T[target_indices].astype(np.float64)
+  print('P',P.shape,P.dtype,P.min(),P.max())
+  print('Q',Q.shape,Q.dtype,Q.min(),Q.max())
+  allF=[]
+  for i in test_indices:
+    x_0,x,r=matchmmd.match_distribution(T[i].astype(np.float64),P,Q,weights)
+    print('x_0',x_0.shape,x_0.dtype,x_0.min(),x_0.max())
+    print('x',x.shape,x.dtype,x.min(),x.max())
+    print('r',r.shape,r.dtype,r.min(),r.max())
+    F=x.dot(U)+mu
+    print('F',F.shape,F.dtype,F.min(),F.max())
+    R=r.dot(U)
+    print('R',R.shape,R.dtype,R.min(),R.max())
+    allF.append(F)
+
+  F=np.asarray(allF,dtype=np.float32)
+  F=F.reshape(F.shape[0]*F.shape[1],-1)
+  print('F',F.shape,F.dtype,F.min(),F.max())
+  # temp code
+  h5f=h5py.File('out_conv3_1.h5','w')
+  h5f.create_dataset('DS',data=F[:,:256*32*32].reshape(-1,256,32,32))
+  h5f.close()
+  h5f=h5py.File('out_conv4_1.h5','w')
+  h5f.create_dataset('DS',data=F[:,256*32*32:256*32*32+512*16*16].reshape(-1,512,16,16))
+  h5f.close()
+  h5f=h5py.File('out_conv5_1.h5','w')
+  h5f.create_dataset('DS',data=F[:,256*32*32+512*16*16:].reshape(-1,512,8,8))
+  h5f.close()
+
+def deepart_pca(prefix='data',blob_names=['conv4_1','conv5_1'],method='matlab'):
 #def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc=''):
+
   t0=time.time()
   # read features
   h5f={}
@@ -581,11 +643,65 @@ def deepart_pca(prefix='data',blob_names=['conv4_1','conv5_1']):
     print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
     N=h5f[k]['DS'].shape[0]
     F.append(np.asarray(h5f[k]['DS'],dtype=np.float32).reshape(N,-1))
+  for k in h5f:
+    h5f[k].close()
+  del h5f
   F=np.concatenate(F,axis=1)
+  N=F.shape[0]
+  print('Memory: {} GB'.format(resource.getrusage(resource.RUSAGE_SELF)[2]*1024/(2**30)))
   print('N',N)
-  print('F',F.shape,F.dtype,F.min(),F.max())
+  print('F',F.shape,F.dtype,F.min(),F.max(),(F==0).sum(),((F!=0).sum(axis=0)==0).sum())
+  mu=F.mean(axis=0)
+  print('mu',mu.shape,mu.dtype,mu.min(),mu.max())
+  print('method',method)
+  if method=='matlab':
+    # Run deepart_pca.m
+    h5f=h5py.File('pca_U.h5','r')
+    U=np.copy(h5f['DS'])
+    h5f.close()
+    print('U',U.shape,U.dtype,U.min(),U.max())
+    h5f=h5py.File('pca_T.h5','r')
+    T=np.copy(h5f['DS'])
+    h5f.close()
+    print('T',T.shape,T.dtype,T.min(),T.max())
+    h5f=h5py.File('pca_mu.h5','r')
+    mu=np.copy(h5f['DS'])
+    h5f.close()
+    print('mu',mu.shape,mu.dtype,mu.min(),mu.max())
+    F2=T.dot(U)+mu
+    print('F2',F2.shape,F2.dtype,F2.min(),F2.max())
+    np.savez('pca.npz',U=U,T=T,mu=mu)
+    return
+  elif method=='pca':
+    pca=sklearn.decomposition.PCA(n_components=N,copy=False,whiten=False)
+  elif method=='randpca':
+    pca=sklearn.decomposition.RandomizedPCA(n_components=N,copy=False,whiten=False,random_state=123)
+  elif method=='truncsvd':
+    np.random.seed(123)
+    pca=sklearn.decomposition.TruncatedSVD(n_components=N)
+    #pca=sklearn.decomposition.TruncatedSVD(n_components=N,algorithm='arpack')
+  else:
+    raise ValueError
+  pca.mu=mu
+  if method=='truncsvd':
+    G=pca.fit_transform(scipy.sparse.csr_matrix(F-pca.mu))
+  else:
+    G=pca.fit_transform(F-pca.mu)
+  F2=pca.inverse_transform(G)+pca.mu
+  print('G',G.shape,G.dtype,G.min(),G.max())
+  print('F2',F2.shape,F2.dtype,F2.min(),F2.max())
+  if method=='pca':
+    print('noise_variance',pca.noise_variance_)
+  with open('data_pca.pickle','w') as f:
+    f.write(pickle.dumps(pca))
+  # Example reading code
+  with open('data_pca.pickle') as f:
+    pca=pickle.loads(f.read())
+  F3=pca.inverse_transform(G)+pca.mu
+  print('F3',F3.shape,F3.dtype,F3.min(),F3.max())
 
   t1=time.time()
+  print('Memory: {} GB'.format(resource.getrusage(resource.RUSAGE_SELF)[2]*1024/(2**30)))
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
 def deepart_compare(inputs,name='compare'):
@@ -629,6 +745,13 @@ if __name__ == '__main__':
     deepart_extract(args[0],model=model,image_dims=image_dims,prefix=prefix)
   elif args[0]=='pca':
     deepart_pca()
+  elif args[0]=='match':
+    args=args[1:]
+    weights=[5e-5]
+    params=('weights',)
+    params_desc={}
+    args=filter_args(args,params,params_desc)
+    deepart_match(weights=weights)
   elif args[0]=='reconstruct':
     args=args[1:]
     model='vgg'
@@ -640,6 +763,8 @@ if __name__ == '__main__':
     prefix='data'
     nlm=(3,21,0.03)
     device_id=0
+    blob_names=['conv3_1','conv4_1','conv5_1']
+    blob_weights=[1,1,1]
     hybrid_names=['conv1_1','conv2_1']
     hybrid_weights=[0.02,0.02]
     tv_lambda=0.001
@@ -647,10 +772,10 @@ if __name__ == '__main__':
     gaussian_init=False
     dataset='lfw'
     desc=''
-    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init','dataset','desc')
+    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','blob_names','blob_weights','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init','dataset','desc')
     params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight', 'dataset': 'Original image filenames read from dataset/DATASET.txt', 'desc': 'Will be appended to the results directory name'}
     args=filter_args(args,params,params_desc)
-    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init,dataset=dataset,desc=desc)
+    deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,blob_names=blob_names,blob_weights=blob_weights,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init,dataset=dataset,desc=desc)
   elif args[0]=='compare':
     args=args[1:]
     deepart_compare(inputs=args)
