@@ -7,6 +7,8 @@ from __future__ import print_function
 import sys
 import numpy as np
 import scipy.optimize
+import Queue
+import threading
 
 def witness_fn(r,x,P,Q,rbf_var,weight):
   # r is D dim
@@ -41,6 +43,28 @@ def witness_fn(r,x,P,Q,rbf_var,weight):
   assert grad.shape==r.shape
   return loss,grad
 
+def unordered_parallel_call(F,S,K,seq=list):
+  # F is list of functions
+  # S is None or list of positional arguments
+  # K is None or list of keyword arguments
+  assert S is None or len(F)==len(S)
+  assert K is None or len(F)==len(K)
+  if S is None:
+    S=[[]]*len(F)
+  if K is None:
+    K=[{}]*len(F)
+  q=Queue.Queue()
+  def call_f(f,s,k):
+    q.put(f(*s,**k))
+  allt=[]
+  for f,s,k in zip(F,S,K):
+    t=threading.Thread(target=call_f,args=(f,s,k))
+    t.start()
+    allt.append(t)
+  for t in allt:
+    t.join()
+  return seq(q.get() for i in range(len(F)))
+
 def match_distribution(x,P,Q,weights,max_iter=5,rbf_var=1e4):
   print('x',x.shape,x.dtype,x.min(),x.max())
   print('P',P.shape,P.dtype,P.min(),P.max())
@@ -59,11 +83,26 @@ def match_distribution(x,P,Q,weights,max_iter=5,rbf_var=1e4):
   
   x_result=[]
   r_result=[]
+
+  # debug
+  def fP(i):
+    return witness_fn(np.zeros_like(x),P[i],P,Q,rbf_var,0)[0]
+  def fQ(i):
+    return witness_fn(np.zeros_like(x),Q[i],P,Q,rbf_var,0)[0]
+  N=P.shape[0]//200
+  M=Q.shape[0]//200
+  print('loss P',sum(unordered_parallel_call([fP]*N,[[i] for i in range(N)],None))/N)
+  print('loss Q',sum(unordered_parallel_call([fQ]*M,[[i] for i in range(M)],None))/M)
+  #print('loss P',sum(witness_fn(np.zeros_like(x),P[i],P,Q,rbf_var,0)[0] for i in range(P.shape[0]))/P.shape[0])
+  #print('loss Q',sum(witness_fn(np.zeros_like(x),Q[i],P,Q,rbf_var,0)[0] for i in range(Q.shape[0]))/Q.shape[0])
+  sys.exit(1) # debug
+
   for weight in weights:
     r=np.zeros_like(x)
     solver_type='CG'
     solver_param={'maxiter': max_iter, 'iprint': -1}
     r_opt=scipy.optimize.minimize(witness_fn,r,args=(x,P,Q,rbf_var,weight),method=solver_type,jac=True,options=solver_param).x
+    r_opt=r_opt*4 # debug
     print('r_opt',r_opt.shape,r_opt.dtype,r_opt.min(),r_opt.max())
     x_result.append((x+r_opt)*sigma+loc)
     r_result.append(r_opt*sigma)

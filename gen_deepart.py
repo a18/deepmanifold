@@ -109,7 +109,7 @@ def filter_args(args,valid_args,help_args,depth=1):
           caller_globals[k]=v
   return result
 
-def setup_classifier(model='vgg',image_dims=(224,224),device_id=1):
+def setup_classifier(model='vgg',image_dims=(224,224),device_id=0):
     #deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_deepart.prototxt'
     #weights_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers.caffemodel'
     #image_dims = (1014//2, 1280//2)
@@ -222,7 +222,7 @@ def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter
         all_target_blob_names, targets, target_data_list
     )
 
-def deepart_identity(image_dims=(224,224),max_iter=1000):
+def deepart_identity(image_dims=(224,224),max_iter=3000):
   # Experimenting with making deepart produce the identity function
   t0=time.time()
   display = 100
@@ -242,25 +242,115 @@ def deepart_identity(image_dims=(224,224),max_iter=1000):
   #  'images/celebrity_tr/57_Chuck_Lorre_0001.jpg',
   #]
 
+  # random images, one per identity
   ipathset = [
-    'images/lfw/Charles_Moose/Charles_Moose_0013.jpg',
-    'images/lfw/Eddy_Merckx/Eddy_Merckx_0002.jpg',
-    'images/lfw/Taufik_Hidayat/Taufik_Hidayat_0001.jpg',
-    'images/lfw/John_Travolta/John_Travolta_0005.jpg',
-    'images/lfw/Hitomi_Soga/Hitomi_Soga_0001.jpg',
-    'images/lfw/Lino_Oviedo/Lino_Oviedo_0001.jpg',
-    'images/lfw/Daniel_Montgomery/Daniel_Montgomery_0001.jpg',
-    'images/lfw/Paul_Burrell/Paul_Burrell_0004.jpg',
-    'images/lfw/David_Beckham/David_Beckham_0031.jpg',
-    'images/lfw/Caroline_Dhavernas/Caroline_Dhavernas_0001.jpg',
+    'images/lfw/Faye_Alibocus/Faye_Alibocus_0001.jpg',
+    'images/lfw/Boris_Trajkovski/Boris_Trajkovski_0001.jpg',
+    'images/lfw/Muhammad_Ali/Muhammad_Ali_0005.jpg',
+    'images/lfw/Gray_Davis/Gray_Davis_0023.jpg',
+    'images/lfw/Jane_Fonda/Jane_Fonda_0001.jpg',
+    'images/lfw/Dean_Barkley/Dean_Barkley_0002.jpg',
+    'images/lfw/George_W_Bush/George_W_Bush_0315.jpg',
+    'images/lfw/Emanuel_Ginobili/Emanuel_Ginobili_0004.jpg',
+    'images/lfw/Justin_Timberlake/Justin_Timberlake_0001.jpg',
+    'images/lfw/Geoff_Hoon/Geoff_Hoon_0005.jpg',
+    'images/lfw/Tony_Bennett/Tony_Bennett_0002.jpg',
+    'images/lfw/Kofi_Annan/Kofi_Annan_0021.jpg',
+    'images/lfw/Douglas_Gansler/Douglas_Gansler_0001.jpg',
+    'images/lfw/Matthew_Broderick/Matthew_Broderick_0004.jpg',
+    'images/lfw/Bustam_A_Zedan_Aljanabi/Bustam_A_Zedan_Aljanabi_0001.jpg',
+    'images/lfw/Tariq_Aziz/Tariq_Aziz_0006.jpg',
+    'images/lfw/Britney_Spears/Britney_Spears_0003.jpg',
+    'images/lfw/Colin_Powell/Colin_Powell_0033.jpg',
+    'images/lfw/Winona_Ryder/Winona_Ryder_0024.jpg',
+    'images/lfw/Bob_Menendez/Bob_Menendez_0001.jpg',
+    'images/lfw/Natalya_Sazanovich/Natalya_Sazanovich_0001.jpg',
+    'images/lfw/John_Kerry/John_Kerry_0010.jpg',
+    'images/lfw/Tom_Hanks/Tom_Hanks_0006.jpg',
+    'images/lfw/Habib_Hisham/Habib_Hisham_0001.jpg',
+    'images/lfw/Andre_Bucher/Andre_Bucher_0001.jpg',
+    'images/lfw/Anna_Nicole_Smith/Anna_Nicole_Smith_0001.jpg',
+    'images/lfw/Alastair_Campbell/Alastair_Campbell_0005.jpg',
+    'images/lfw/Gerhard_Schroeder/Gerhard_Schroeder_0068.jpg',
+    'images/lfw/Patrick_Roy/Patrick_Roy_0002.jpg',
+    'images/lfw/Ariel_Sharon/Ariel_Sharon_0025.jpg',
+    'images/lfw/Prince_Naruhito/Prince_Naruhito_0002.jpg',
+    'images/lfw/Cuba_Gooding_Jr/Cuba_Gooding_Jr_0001.jpg',
+    'images/lfw/Jeremy_Greenstock/Jeremy_Greenstock_0019.jpg',
+    'images/lfw/Jacques_Chirac/Jacques_Chirac_0037.jpg',
+    'images/lfw/Edwin_Edwards/Edwin_Edwards_0003.jpg',
+    'images/lfw/Bulent_Ecevit/Bulent_Ecevit_0001.jpg',
+    'images/lfw/Dan_Snyder/Dan_Snyder_0001.jpg',
+    'images/lfw/John_Paul_II/John_Paul_II_0003.jpg',
+    'images/lfw/Ben_Kingsley/Ben_Kingsley_0001.jpg',
+    'images/lfw/Mahmoud_Abbas/Mahmoud_Abbas_0005.jpg',
+    'images/lfw/David_Sousa/David_Sousa_0001.jpg',
+    'images/lfw/Alanna_Ubach/Alanna_Ubach_0001.jpg',
+    'images/lfw/Ricardo_Lagos/Ricardo_Lagos_0010.jpg',
+    'images/lfw/Howard_Dean/Howard_Dean_0008.jpg',
+    'images/lfw/Robert_Wagner/Robert_Wagner_0001.jpg',
+    'images/lfw/Ambrose_Lee/Ambrose_Lee_0001.jpg',
+    'images/lfw/Mike_Weir/Mike_Weir_0002.jpg',
+    'images/lfw/Jesse_Jackson/Jesse_Jackson_0004.jpg',
+    'images/lfw/Alejandro_Toledo/Alejandro_Toledo_0024.jpg',
+    'images/lfw/John_Baldacci/John_Baldacci_0001.jpg',
+    'images/lfw/Hugo_Chavez/Hugo_Chavez_0051.jpg',
+    'images/lfw/Nancy_Pelosi/Nancy_Pelosi_0002.jpg',
+    'images/lfw/Jorge_Quiroga/Jorge_Quiroga_0001.jpg',
+    'images/lfw/Luiz_Inacio_Lula_da_Silva/Luiz_Inacio_Lula_da_Silva_0003.jpg',
+    'images/lfw/Toshi_Izawa/Toshi_Izawa_0001.jpg',
+    'images/lfw/Lee_Hoi-chang/Lee_Hoi-chang_0002.jpg',
+    'images/lfw/Jose_Mourinho/Jose_Mourinho_0002.jpg',
+    'images/lfw/Sally_Kirkland/Sally_Kirkland_0004.jpg',
+    'images/lfw/Roy_Williams/Roy_Williams_0003.jpg',
+    'images/lfw/Conchita_Martinez/Conchita_Martinez_0002.jpg',
+    'images/lfw/Joe_Lieberman/Joe_Lieberman_0012.jpg',
+    'images/lfw/Aung_San_Suu_Kyi/Aung_San_Suu_Kyi_0001.jpg',
+    'images/lfw/Amram_Mitzna/Amram_Mitzna_0001.jpg',
+    'images/lfw/Ward_Cuff/Ward_Cuff_0001.jpg',
+    'images/lfw/John_Ashcroft/John_Ashcroft_0005.jpg',
+    'images/lfw/Jane_Russell/Jane_Russell_0001.jpg',
+    'images/lfw/Charles_Grassley/Charles_Grassley_0002.jpg',
+    'images/lfw/Scott_Peterson/Scott_Peterson_0003.jpg',
+    'images/lfw/Mark_Hamister/Mark_Hamister_0001.jpg',
+    'images/lfw/Dan_Quayle/Dan_Quayle_0001.jpg',
+    'images/lfw/Paul_Bremer/Paul_Bremer_0015.jpg',
+    'images/lfw/Juan_Manuel_Marquez/Juan_Manuel_Marquez_0002.jpg',
+    'images/lfw/Zhang_Ziyi/Zhang_Ziyi_0001.jpg',
+    'images/lfw/Vladimir_Voltchkov/Vladimir_Voltchkov_0002.jpg',
+    'images/lfw/Renee_Zellweger/Renee_Zellweger_0005.jpg',
+    'images/lfw/David_Przybyszewski/David_Przybyszewski_0001.jpg',
+    'images/lfw/John_Burkett/John_Burkett_0001.jpg',
+    'images/lfw/Atal_Bihari_Vajpayee/Atal_Bihari_Vajpayee_0018.jpg',
+    'images/lfw/Anne_McLellan/Anne_McLellan_0001.jpg',
+    'images/lfw/Minnie_Driver/Minnie_Driver_0001.jpg',
+    'images/lfw/Alexander_Lukashenko/Alexander_Lukashenko_0001.jpg',
+    'images/lfw/Hiroyuki_Yoshino/Hiroyuki_Yoshino_0001.jpg',
+    'images/lfw/Nestor_Kirchner/Nestor_Kirchner_0010.jpg',
+    'images/lfw/Harry_Schmidt/Harry_Schmidt_0002.jpg',
+    'images/lfw/Nathan_Lane/Nathan_Lane_0001.jpg',
+    'images/lfw/Jeremy_Gompertz/Jeremy_Gompertz_0001.jpg',
+    'images/lfw/Trent_Lott/Trent_Lott_0009.jpg',
+    'images/lfw/Tony_Blair/Tony_Blair_0060.jpg',
+    'images/lfw/Wu_Yi/Wu_Yi_0003.jpg',
+    'images/lfw/Kim_Dae-jung/Kim_Dae-jung_0001.jpg',
+    'images/lfw/Bill_Sizemore/Bill_Sizemore_0001.jpg',
+    'images/lfw/Gloria_Macapagal_Arroyo/Gloria_Macapagal_Arroyo_0030.jpg',
+    'images/lfw/Ralf_Schumacher/Ralf_Schumacher_0003.jpg',
+    'images/lfw/Richard_Krajicek/Richard_Krajicek_0002.jpg',
+    'images/lfw/Hisao_Oguchi/Hisao_Oguchi_0001.jpg',
+    'images/lfw/Meryl_Streep/Meryl_Streep_0003.jpg',
   ]
+  ipathset=ipathset[:20]
 
   targetset=[
     ('c5',[ ['', ['conv5_1'], False, 1], ]),
     ('c4',[ ['', ['conv4_1'], False, 1], ]),
     ('c3',[ ['', ['conv3_1'], False, 1], ]),
-    ('c45',[ ['', ['conv4_1', 'conv5_1'], False, 1], ]),
-    ('c345',[ ['', ['conv3_1', 'conv4_1', 'conv5_1'], False, 1], ]),
+    ('c2',[ ['', ['conv2_1'], False, 1], ]),
+    ('c1',[ ['', ['conv1_1'], False, 1], ]),
+    #('c45',[ ['', ['conv4_1', 'conv5_1'], False, 1], ]),
+    #('c345',[ ['', ['conv3_1', 'conv4_1', 'conv5_1'], False, 1], ]),
     #('c55',[ ['', ['conv5_1', 'conv5_2'], False, 1], ]),
     #('c4455',[ ['', ['conv4_1', 'conv4_2', 'conv5_1', 'conv5_2'], False, 1], ]),
     #('c555',[ ['', ['conv5_1', 'conv5_2', 'conv5_3'], False, 1], ]),
@@ -283,7 +373,7 @@ def deepart_identity(image_dims=(224,224),max_iter=1000):
         
         np.random.seed(123)
     
-        root_dir = 'results_{}/{}/{}/{}'.format(int(round(t0)),model,tname,os.path.splitext(os.path.split(ipath1)[1])[0])
+        root_dir = 'results_{}_identity/{}/{}/{}'.format(int(round(t0)),model,tname,os.path.splitext(os.path.split(ipath1)[1])[0])
         if not os.path.exists(root_dir):
           os.makedirs(root_dir)
     
@@ -324,7 +414,7 @@ def deepart_identity(image_dims=(224,224),max_iter=1000):
   
       psnr=np.asarray(psnr).mean()
       ssim=np.asarray(ssim).mean()
-      with open('results_{}/autoencoder.txt'.format(int(round(t0))),'a') as f:
+      with open('results_{}_identity/autoencoder.txt'.format(int(round(t0))),'a') as f:
         f.write('{},{},{},{}\n'.format(model,tname,psnr,ssim))
 
   t1=time.time()
@@ -491,6 +581,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   psnr=[]
   ssim=[]
   work_units,work_done,work_t0=len(test_indices),0,time.time()
+  basename_uid={}
   for j,i in enumerate(test_indices):
     if j % subsample: continue
     np.random.seed(123)
@@ -501,6 +592,11 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     #seq=lfwattr[i][1]
     #basename=os.path.splitext(os.path.split(lfw_filename(person,seq))[1])[0]
     basename=os.path.splitext(os.path.split(ipath)[1])[0]
+    if basename not in basename_uid:
+      basename_uid[basename]=0
+    else:
+      basename_uid[basename]=basename_uid[basename]+1
+    basename2='{}-{:02}'.format(basename,basename_uid[basename])
 
     # generate target list and target features
     all_target_blob_names=list(hybrid_names)+list(blob_names)
@@ -550,14 +646,14 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     #print('A',A.shape,A.dtype,A.min(),A.max())
     #print('B',B.shape,B.dtype,B.min(),B.max())
     skimage.io.imsave('{}/{}-original.png'.format(root_dir,basename),A)
-    skimage.io.imsave('{}/{}.png'.format(root_dir,basename),B)
-    C=non_local_means('{}/{}.png'.format(root_dir,basename),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename))
+    skimage.io.imsave('{}/{}.png'.format(root_dir,basename2),B)
+    C=non_local_means('{}/{}.png'.format(root_dir,basename2),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename2))
     caption='psnr {:.4}, ssim {:.4}'.format(measure.measure_PSNR(A,B,1).mean(),measure.measure_SSIM(A,B,1).mean())
-    subprocess.check_call('convert {root_dir}/{basename}-original.png {root_dir}/{basename}.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval_{basename}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),ipath=pipes.quote(ipath),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
+    subprocess.check_call('convert {root_dir}/{basename}-original.png {root_dir}/{basename2}.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval_{basename2}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),basename2=pipes.quote(basename2),ipath=pipes.quote(ipath),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
     psnr.append(measure.measure_PSNR(A,B,1).mean())
     ssim.append(measure.measure_SSIM(A,B,1).mean())
     with open('{}/results.txt'.format(root_dir),'a') as f:
-      f.write('"{}",{},{},{}\n'.format(basename,i,psnr[-1],ssim[-1]))
+      f.write('"{}",{},{},{}\n'.format(basename2,i,psnr[-1],ssim[-1]))
 
     work_done=work_done+1*subsample
     rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
