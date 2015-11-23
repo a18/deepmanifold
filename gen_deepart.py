@@ -240,20 +240,6 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
     ipathset=['images/'+x.strip() for x in f.readlines()]
   ipathset=ipathset[:20]
 
-  #targetset=[
-  #  ('c5',[ ['', ['conv5_1'], False, 1], ]),
-  #  ('c4',[ ['', ['conv4_1'], False, 1], ]),
-  #  ('c3',[ ['', ['conv3_1'], False, 1], ]),
-  #  ('c2',[ ['', ['conv2_1'], False, 1], ]),
-  #  ('c1',[ ['', ['conv1_1'], False, 1], ]),
-  #  #('c45',[ ['', ['conv4_1', 'conv5_1'], False, 1], ]),
-  #  #('c345',[ ['', ['conv3_1', 'conv4_1', 'conv5_1'], False, 1], ]),
-  #  #('c55',[ ['', ['conv5_1', 'conv5_2'], False, 1], ]),
-  #  #('c4455',[ ['', ['conv4_1', 'conv4_2', 'conv5_1', 'conv5_2'], False, 1], ]),
-  #  #('c555',[ ['', ['conv5_1', 'conv5_2', 'conv5_3'], False, 1], ]),
-  #  #('c444555',[ ['', ['conv4_1', 'conv4_2', 'conv4_3', 'conv5_1', 'conv5_2', 'conv5_3'], False, 1], ]),
-  #]
-
   targetset=[
     ('c4',['conv4_1'],[1]),
     ('c3',['conv3_1'],[1]),
@@ -280,11 +266,6 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
         if not os.path.exists(root_dir2):
           os.makedirs(root_dir2)
     
-        ## Generate activations for input images
-        #for i in range(len(targets)):
-        #  targets[i][0]=ipath1
-        #target_data_list=gen_target_data(root_dir2, caffe, net, targets)
-        # generate target list and target features
         all_target_blob_names=list(hybrid_names)+list(blob_names)
         targets=[]
         target_data_list=[]
@@ -317,10 +298,6 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
         print('re',D.shape,D.dtype,D.min(),D.max())
     
         # optimize
-        #Chat=optimize_img(
-        #  init_img, solver_type, solver_param, max_iter, display, root_dir2, net,
-        #  all_target_blob_names, targets, target_data_list
-        #)
         # Set initial value and reshape net
         init_img=np.random.normal(loc=0.5,scale=0.1,size=image_dims+(3,))
         deepart.set_data(net,init_img)
@@ -341,7 +318,7 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
         skimage.io.imsave('{}/{}_best.png'.format(root_dir2,basename),D)
         skimage.io.imsave('{}/{}_actual.png'.format(root_dir2,basename),Dhat)
         caption='psnr {:.4}, ssim {:.4}'.format(measure.measure_PSNR(A,Dhat,1).mean(),measure.measure_SSIM(A,Dhat,1).mean())
-        subprocess.check_call('convert {root_dir2}/{basename}_best.png {root_dir2}/{basename}_actual.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir2}/eval_{basename}.png'.format(root_dir2=pipes.quote(root_dir2),basename=pipes.quote(basename),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
+        subprocess.check_call('convert {root_dir2}/{basename}_original.png {root_dir2}/{basename}_actual.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir2}/eval_{basename}.png'.format(root_dir2=pipes.quote(root_dir2),basename=pipes.quote(basename),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
         psnr.append(measure.measure_PSNR(A,Dhat,1).mean())
         ssim.append(measure.measure_SSIM(A,Dhat,1).mean())
   
