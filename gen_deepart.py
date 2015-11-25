@@ -222,7 +222,7 @@ def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter
         all_target_blob_names, targets, target_data_list
     )
 
-def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,desc='identity'):
+def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,desc='identity',device_id=0):
   # Experimenting with making deepart produce the identity function
   t0=time.time()
 
@@ -252,7 +252,7 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
 
   for model in modelset:
 
-    caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims)
+    caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims,device_id=device_id)
 
     for tname,blob_names,blob_weights in targetset:
 
@@ -732,10 +732,11 @@ if __name__ == '__main__':
   if args[0]=='identity':
     args=args[1:]
     image_dims=(125,125)
-    params=('image_dims')
+    device_id=0
+    params=('image_dims','device_id')
     params_desc={}
     args=filter_args(args,params,params_desc)
-    deepart_identity(image_dims=image_dims)
+    deepart_identity(image_dims=image_dims,device_id=device_id)
   elif args[0]=='extractlfw':
     args=args[1:]
     model='vgg'
