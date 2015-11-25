@@ -241,8 +241,10 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
   ipathset=ipathset[:20]
 
   targetset=[
+    ('c5',['conv5_1'],[1]),
     ('c4',['conv4_1'],[1]),
     ('c3',['conv3_1'],[1]),
+    ('c2',['conv2_1'],[1]),
   ]
 
   #modelset=['vggface','vgg']
@@ -262,7 +264,7 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
         np.random.seed(123)
     
         basename=os.path.splitext(os.path.split(ipath1)[1])[0]
-        root_dir2='{}/{}/{}'.format(root_dir,int(round(t0)),model,tname)
+        root_dir2='{}/{}/{}'.format(root_dir,model,tname)
         if not os.path.exists(root_dir2):
           os.makedirs(root_dir2)
     
