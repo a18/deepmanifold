@@ -222,7 +222,7 @@ def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter
         all_target_blob_names, targets, target_data_list
     )
 
-def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,desc='identity',device_id=0):
+def deepart_identity(image_dims=None,max_iter=3000,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,desc='identity',device_id=0,dataset='lfw_random',count=20,layers=None):
   # Experimenting with making deepart produce the identity function
   t0=time.time()
 
@@ -235,17 +235,38 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
       f.write(' '.join(str(x) for x in args)+'\n')
     sys.stdout.write(' '.join(str(x) for x in args)+'\n')
 
-  # random images, one per identity
-  with open('dataset/lfw_random.txt') as f:
-    ipathset=['images/'+x.strip() for x in f.readlines()]
-  ipathset=ipathset[:20]
+  print('image_dims',image_dims)
+  print('max_iter',max_iter)
+  print('hybrid_names',hybrid_names)
+  print('hybrid_weights',hybrid_weights)
+  print('tv_lambda',tv_lambda)
+  print('tv_beta',tv_beta)
+  print('desc',desc)
+  print('device_id',device_id)
+  print('dataset',dataset)
+  print('count',count)
+  print('layers',layers)
 
-  targetset=[
-    ('c5',['conv5_1'],[1]),
-    ('c4',['conv4_1'],[1]),
-    ('c3',['conv3_1'],[1]),
-    ('c2',['conv2_1'],[1]),
-  ]
+  if isinstance(dataset,list) or isinstance(dataset,tuple):
+    ipathset=list(dataset)
+  else:
+    with open('dataset/{}.txt'.format(dataset)) as f:
+      ipathset=['images/'+x.strip() for x in f.readlines()]
+    ipathset=ipathset[:count]
+
+  if layers is None:
+    targetset=[
+      ('c5',['conv5_1'],[1]),
+      ('c4',['conv4_1'],[1]),
+      ('c3',['conv3_1'],[1]),
+      ('c2',['conv2_1'],[1]),
+    ]
+  else:
+    targetset=[]
+    if 'c2' in layers: targetset.append(('c2',['conv2_1'],[1]))
+    if 'c3' in layers: targetset.append(('c3',['conv3_1'],[1]))
+    if 'c4' in layers: targetset.append(('c4',['conv4_1'],[1]))
+    if 'c5' in layers: targetset.append(('c5',['conv5_1'],[1]))
 
   #modelset=['vggface','vgg']
   modelset=['vgg']
@@ -301,7 +322,7 @@ def deepart_identity(image_dims=(224,224),max_iter=3000,hybrid_names=[],hybrid_w
     
         # optimize
         # Set initial value and reshape net
-        init_img=np.random.normal(loc=0.5,scale=0.1,size=image_dims+(3,))
+        init_img=np.random.normal(loc=0.5,scale=0.1,size=A.shape)
         deepart.set_data(net,init_img)
         #x0=np.ravel(init_img).astype(np.float64)
         x0=net.get_input_blob().ravel().astype(np.float64)
@@ -731,12 +752,15 @@ if __name__ == '__main__':
   #run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
   if args[0]=='identity':
     args=args[1:]
-    image_dims=(125,125)
     device_id=0
-    params=('image_dims','device_id')
+    dataset='lfw_random'
+    count=20
+    desc='identity'
+    layers=None
+    params=('device_id','dataset','count','desc','layers')
     params_desc={}
     args=filter_args(args,params,params_desc)
-    deepart_identity(image_dims=image_dims,device_id=device_id)
+    deepart_identity(device_id=device_id,dataset=dataset,count=count,desc=desc,layers=layers)
   elif args[0]=='extractlfw':
     args=args[1:]
     model='vgg'
