@@ -752,15 +752,16 @@ if __name__ == '__main__':
   #run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
   if args[0]=='identity':
     args=args[1:]
+    image_dims=None
     device_id=0
     dataset='lfw_random'
     count=20
     desc='identity'
     layers=None
-    params=('device_id','dataset','count','desc','layers')
+    params=('image_dims','device_id','dataset','count','desc','layers')
     params_desc={}
     args=filter_args(args,params,params_desc)
-    deepart_identity(device_id=device_id,dataset=dataset,count=count,desc=desc,layers=layers)
+    deepart_identity(image_dims=image_dims,device_id=device_id,dataset=dataset,count=count,desc=desc,layers=layers)
   elif args[0]=='extractlfw':
     args=args[1:]
     model='vgg'
