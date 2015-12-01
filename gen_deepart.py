@@ -31,6 +31,9 @@ import pipes
 import h5py
 import itertools
 import scipy
+import seaborn
+import pandas
+import matplotlib.pyplot
 
 from fet_extractor import load_fet_extractor
 from deepart import gen_target_data, optimize_img
@@ -221,6 +224,86 @@ def deepart2(ipath1,ipath2,init_img=None,display=100,root_dir='results',max_iter
         init_img, solver_type, solver_param, max_iter, display, root_dir, net,
         all_target_blob_names, targets, target_data_list
     )
+
+def plot_horizontal_bars(X,Y,xlabel,ylabel,title):
+  sns=seaborn
+  plt=matplotlib.pyplot
+
+  sns.set(style="whitegrid")
+  sns.set_color_codes("pastel")
+
+  f,ax=plt.subplots(figsize=(6,0.8*len(Y)))
+  data=pandas.DataFrame(data={xlabel: X, ylabel: Y})
+  data.plot(ylabel,xlabel,kind='barh',color='b',figsize=(6,0.2*len(Y)),edgecolor='b')
+
+  #ax.legend(ncol=2,loc='lower right',frameon=True)
+  #ax.set(xlim=(min(X),max(X)),ylabel=ylabel,xlabel=xlabel)
+  sns.despine(left=True,bottom=True)
+
+  matplotlib.pyplot.title(title)
+  matplotlib.pyplot.tight_layout()
+
+def deepart_examine(model='vgg',image_dims=None,device_id=0,max_iter=3000,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,desc='identity',dataset='lfw_random',count=20,layers=None):
+  t0=time.time()
+
+  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims,device_id=device_id)
+
+  importance={}
+  for ipath3 in ['results_1448431008_identity_lfw20c2c3c4c5/vgg/c4','results_1448431008_identity_lfw20c2c3c4c5/vgg/c5']:
+  #for ipath3 in ['results_1448673175_identity_houzz20c4/vgg/c4']:
+    for ipath1 in glob.glob('{}/*_original.png'.format(ipath3)):
+      print(ipath1)
+      ipath2=ipath1.replace('original','actual')
+  
+      #A=caffe.io.load_image(ipath1) # ground truth
+      #B=net.preprocess_inputs([A],auto_reshape=True)
+      #C=net.transformer.deprocess(net.inputs[0],B)
+      #D=caffe.io.resize_image(C,A.shape) # best possible result (only preprocess / deprocess)
+      #Dhat=caffe.io.load_image(ipath2) # recon result
+  
+      # conv1_1 (2, 64, 800, 800) float32 -0.0 29.7672
+      # conv2_1 (2, 128, 400, 400) float32 -0.0 35.3852
+      # conv3_1 (2, 256, 200, 200) float32 -0.0 45.8031
+      # conv4_1 (2, 512, 100, 100) float32 -0.0 24.7847
+      # conv5_1 (2, 512, 50, 50) float32 -0.0 45.1556
+  
+      blob_names=['conv1_1','conv2_1','conv3_1','conv4_1','conv5_1']
+      F=net.extract_features([ipath1,ipath2],list(blob_names),auto_reshape=True)
+      for k in blob_names:
+        #print(k,F[k].shape,F[k].dtype,F[k].min(),F[k].max())
+        K=F[k].shape[1]
+        x=F[k][0].reshape(F[k].shape[1],-1)
+        y=F[k][1].reshape(F[k].shape[1],-1)
+        err=((y-x)**2).mean(axis=1)
+        ranking=sorted(list(range(K)),key=lambda x: err[x])
+        print(k,ranking[:10],ranking[-10:])
+        if k not in importance:
+          importance[k]=numpy.zeros(K,numpy.int64)
+        for i in ranking[:10]:
+          importance[k][i]=importance[k][i]+1
+  
+    for k in blob_names:
+      print(k)
+      K=len(importance[k])
+      ranking=sorted(list(range(K)),key=lambda x: importance[k][x])
+      plot_horizontal_bars([importance[k][i] for i in ranking],ranking,'top-10 error count','feature id',k)
+      #fig=matplotlib.pyplot.figure()
+      #matplotlib.pyplot.gcf().set_size_inches(0.1*K,4)
+      #matplotlib.pyplot.bar(range(K),[importance[k][i] for i in ranking])
+      #matplotlib.pyplot.xticks(range(K),ranking)
+      #matplotlib.pyplot.title(k)
+      #matplotlib.pyplot.xlabel('feature id')
+      #matplotlib.pyplot.ylabel('top-10 error count')
+      ##matplotlib.pyplot.tight_layout(pad=1)
+      matplotlib.pyplot.savefig('{}/{}.pdf'.format(ipath3,k))
+      matplotlib.pyplot.close()
+      for i in ranking:
+        print('{:4}'.format(i),'*'*importance[k][i])
+    #subprocess.check_call('pdftk {}/conv*.pdf cat output {}/top-10-error.pdf'.format(pipes.quote(ipath3),pipes.quote(ipath3)),shell=True)
+    subprocess.check_call('gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile={}/top-10-error.pdf {}/conv*.pdf'.format(pipes.quote(ipath3),pipes.quote(ipath3)),shell=True)
+
+  t1=time.time()
+  print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
 def deepart_identity(image_dims=None,max_iter=3000,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,desc='identity',device_id=0,dataset='lfw_random',count=20,layers=None):
   # Experimenting with making deepart produce the identity function
@@ -762,6 +845,15 @@ if __name__ == '__main__':
     params_desc={}
     args=filter_args(args,params,params_desc)
     deepart_identity(image_dims=image_dims,device_id=device_id,dataset=dataset,count=count,desc=desc,layers=layers)
+  elif args[0]=='examine':
+    args=args[1:]
+    model='vgg'
+    image_dims=None
+    device_id=0
+    params=('model','image_dims','device_id')
+    params_desc={}
+    args=filter_args(args,params,params_desc)
+    deepart_examine(model=model,image_dims=image_dims,device_id=device_id)
   elif args[0]=='extractlfw':
     args=args[1:]
     model='vgg'
