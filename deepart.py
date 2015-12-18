@@ -46,11 +46,36 @@ def style_grad(gen_data, target_data):
     return loss, grad
 
 
-def content_grad(gen_data, target_data):
-    grad = gen_data - target_data
-    loss = np.sum(grad ** 2) * 0.5
+def content_grad(gen_data, target_data, weight=None):
+    if weight is None:
+        grad = gen_data - target_data
+        loss = np.sum(grad ** 2) * 0.5
+    else:
+        grad = gen_data - target_data
+        loss = np.sum((grad ** 2) * weight) * 0.5
+        grad *= weight
 
     return loss, grad
+
+
+def gradient_grad(gen_data, target_data, weight):
+    # gen_data is M x K x H x W image
+    # target_data is 2 x M x K x H x W target fy, fx (last row and column are ignored)
+    # weight is M x 1 x H x W alpha mask
+
+    fy = np.diff(gen_data, axis=2)
+    fx = np.diff(gen_data, axis=3)
+    fymgy = fy - target_data[0,:,:,:-1,:]
+    fxmgx = fx - target_data[1,:,:,:,:-1]
+    # fx = 1D finite diff
+    # partial derivative is -1 => take reversed finite diff of the finite diff,
+    # and append -first and +last element of fx
+    grady = np.concatenate([-fy[:,:,:1,:], np.diff(fymgy[:,:,::-1,:], axis=2)[:,:,::-1,:], fy[:,:,-1:,:]], axis=2)
+    gradx = np.concatenate([-fx[:,:,:,:1], np.diff(fxmgx[:,:,:,::-1], axis=3)[:,:,:,::-1], fx[:,:,:,-1:]], axis=3)
+    lossy = np.sum((fymgy ** 2) * weight[:,:,:-1,:]) * 0.5
+    lossx = np.sum((fxmgx ** 2) * weight[:,:,:,:-1]) * 0.5
+
+    return lossy + lossx, (grady + gradx) * weight
 
 
 def gen_target_data(root_dir, caffe, net, targets):

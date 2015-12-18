@@ -20,7 +20,6 @@ finally:
   del skimage_io_import_bug_workaround
 import skimage.restoration
 import sklearn.decomposition
-import scipy.sparse
 import pickle
 import time
 import glob
@@ -34,6 +33,7 @@ import scipy
 import seaborn
 import pandas
 import matplotlib.pyplot
+import totalvariation
 
 from fet_extractor import load_fet_extractor
 from deepart import gen_target_data, optimize_img
@@ -278,7 +278,7 @@ def deepart_examine(model='vgg',image_dims=None,device_id=0,max_iter=3000,hybrid
         ranking=sorted(list(range(K)),key=lambda x: err[x])
         print(k,ranking[:10],ranking[-10:])
         if k not in importance:
-          importance[k]=numpy.zeros(K,numpy.int64)
+          importance[k]=np.zeros(K,np.int64)
         for i in ranking[:10]:
           importance[k][i]=importance[k][i]+1
   
@@ -529,6 +529,202 @@ def non_local_means(ipath,w,n,h,opath):
   skimage.io.imsave(opath,b)
   return b
 
+def deepart_edit(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc='edit'):
+  t0=time.time()
+
+  # create network
+  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims,device_id=device_id)
+
+  # init result dir
+  root_dir='results_{}'.format(int(round(t0))) if desc=='' else 'results_{}_{}'.format(int(round(t0)),desc)
+  if not os.path.exists(root_dir):
+    os.makedirs(root_dir)
+  def print(*args):
+    with open('{}/log.txt'.format(root_dir),'a') as f:
+      f.write(' '.join(str(x) for x in args)+'\n')
+    sys.stdout.write(' '.join(str(x) for x in args)+'\n')
+  print('root_dir',root_dir)
+  print('model',model)
+  print('blob_names',blob_names)
+  print('blob_weights',blob_weights)
+  print('hybrid_names',hybrid_names)
+  print('hybrid_weights',hybrid_weights)
+  print('prefix',prefix)
+  print('subsample',subsample)
+  print('max_iter',max_iter)
+  print('image_dims',image_dims)
+  print('tv_lambda',tv_lambda)
+  print('tv_beta',tv_beta)
+  print('gaussian_init',gaussian_init)
+  print('dataset',dataset)
+
+  # image
+  ipath='images/lfw/Winona_Ryder/Winona_Ryder_0024.jpg'
+  init_img=caffe.io.load_image(ipath)
+  print('init_img',init_img.shape,init_img.dtype)
+
+  # generate target list and target features
+  all_target_blob_names=list(hybrid_names)+list(blob_names)
+  targets=[]
+  target_data_list=[]
+  if len(hybrid_weights)>0:
+    F=net.extract_features([ipath],hybrid_names,auto_reshape=True)
+    for k,v in zip(hybrid_names,hybrid_weights):
+      if len(targets)>0 and targets[-1][3]==v:
+        targets[-1][1].append(k)
+        target_data_list[-1][k]=F[k]
+      else:
+        targets.append((None,[k],False,v))
+        target_data_list.append({k: F[k]})
+      print('hybrid',k,v,F[k].shape,F[k].dtype)
+  for k,v in zip(blob_names,blob_weights):
+    F=net.extract_features([ipath],blob_names,auto_reshape=True)
+    if len(targets)>0 and targets[-1][3]==v:
+      targets[-1][1].append(k)
+      target_data_list[-1][k]=F[k]
+    else:
+      targets.append((None,[k],False,v))
+      target_data_list.append({k: F[k]})
+    print('target',k,v,F[k].shape,F[k].dtype)
+
+  # image target = weighted L2 loss (1 x 3 x H x W)
+  # gradient target = weighted L2 loss on finite diff (2 x 1 x K x H x W)
+  # feature target = weighted L2 loss (1 x K x H x W)
+  gradient_space_targets=[]
+  if False:
+    deepart.set_data(net,init_img)
+    gen_data=net.get_input_blob().astype(np.float64)
+    gradient_target=np.zeros((2,)+gen_data.shape,dtype=np.float64)
+    gradient_target[0,:,:,:-1,:]=np.diff(gen_data,axis=2)*3
+    gradient_target[1,:,:,:,:-1]=np.diff(gen_data,axis=3)*3
+    gradient_weight=np.ones(gen_data.shape)
+    gradient_space_targets.append((gradient_target,gradient_weight))
+
+  image_space_targets=[]
+  if False:
+    color_img=skimage.io.imread('eyes.png')/255.0
+    deepart.set_data(net,color_img[:,:,:3])
+    gen_data=net.get_input_blob().astype(np.float64)
+    image_target=np.copy(gen_data)
+    image_weight=(color_img[:,:,3])[np.newaxis,np.newaxis]
+    assert image_target.shape==(1,3,250,250)
+    assert image_weight.shape==(1,1,250,250)
+    assert image_weight.max()<=1
+    image_space_targets.append((image_target,image_weight))
+
+  if True:
+    F=net.extract_features([ipath],all_target_blob_names,auto_reshape=True)
+    k='conv3_1'
+    v=1
+    #print(k,F[k].min(),F[k].max(),np.linalg.norm(F[k]))
+    for i in range(F[k].shape[1]):
+      m=F[k][0,i].max()
+      F[k][0,i]*=2
+    targets.append((None,[k],False,v))
+    target_data_list.append({k: np.copy(F[k])})
+  
+
+  # objective fn
+  def objective_fn(x, net, all_target_blob_names, targets, target_data_list, tv_lambda, tv_beta):
+    # def objective_func(x, net, all_target_blob_names, targets, target_data_list, tv_lambda, tv_beta):
+    # x = current solution image
+    # returns loss, gradients
+    deepart.get_data_blob(net).data[...]=np.reshape(x,deepart.get_data_blob(net).data.shape)
+    deepart.get_data_blob(net).diff[...]=0
+    net.forward()
+
+    loss = 0
+    # Go through target blobs in reversed order
+    for i in range(len(all_target_blob_names)):
+        blob_i = len(all_target_blob_names) - 1 - i
+        start = all_target_blob_names[blob_i]
+
+        if blob_i == 0:
+            end = None
+        else:
+            end = all_target_blob_names[blob_i - 1]
+
+        # Get target blob
+        target_blob = net.blobs[start]
+        if i == 0:
+            target_blob.diff[...] = 0
+
+        gen_data = target_blob.data.copy()
+        print('gen_data',gen_data.shape,gen_data.dtype) # debug
+        # Apply RELU
+        pos_mask = gen_data > 0
+        gen_data[~pos_mask] = 0
+
+        # Go through all images and compute accumulated gradient for the current target blob
+        target_blob_add_diff = np.zeros_like(target_blob.diff, dtype=np.float64)
+        for target_i, (_, target_blob_names, is_gram, weight) in enumerate(targets):
+            # Skip if the current blob is not among the target's blobs
+            if start not in target_blob_names:
+                continue
+
+            target_data = target_data_list[target_i][start]
+            if is_gram:
+                c_loss, c_grad = deepart.style_grad(gen_data, target_data)
+            else:
+                c_loss, c_grad = deepart.content_grad(gen_data, target_data)
+
+            # Apply RELU
+            c_grad[~pos_mask] = 0
+            target_blob_add_diff += c_grad * weight / len(target_blob_names)
+            loss += c_loss * weight / len(target_blob_names)
+
+        target_blob.diff[...] += target_blob_add_diff
+        net.backward(start=start, end=end)
+
+    print('loss',loss)
+    grad = np.ravel(deepart.get_data_blob(net).diff).astype(np.float64)
+
+    # debug
+    for (gradient_target, gradient_weight) in gradient_space_targets:
+      gen_data = x.reshape(deepart.get_data_blob(net).data.shape)
+      fy = np.diff(gen_data, axis=2)
+      fx = np.diff(gen_data, axis=3)
+      loss_g, grad_g = deepart.gradient_grad(gen_data, gradient_target, gradient_weight)
+      grad_g = np.ravel(grad_g).astype(np.float64)
+      loss += loss_g
+      grad += grad_g
+      print('loss_g',loss_g)
+
+    for (image_target, image_weight) in image_space_targets:
+      loss_i, grad_i = deepart.content_grad(gen_data, image_target, weight=image_weight)
+      grad_i = np.ravel(grad_i).astype(np.float64)
+      loss += loss_i
+      grad += grad_i
+      print('loss_i',loss_i)
+
+    if tv_lambda > 0:
+        tv_loss, tv_grad = totalvariation.tv_norm(x.reshape(deepart.get_data_blob(net).data.shape),beta=tv_beta)
+        print('loss_tv',tv_loss*tv_lambda)
+        return loss + tv_loss*tv_lambda, grad + np.ravel(tv_grad)*tv_lambda
+    else:
+        return loss, grad
+
+  deepart.set_data(net,init_img)
+  x0=net.get_input_blob().ravel().astype(np.float64)
+  bounds=zip(np.full_like(x0,-128),np.full_like(x0,162))
+  solver_type='L-BFGS-B'
+  solver_param={'maxiter': max_iter, 'iprint': -1}
+  opt_res=scipy.optimize.minimize(objective_fn,x0,args=(net,all_target_blob_names,targets,target_data_list,tv_lambda,tv_beta),bounds=bounds,method=solver_type,jac=True,options=solver_param)
+  print(opt_res)
+
+  data=np.reshape(opt_res.x,net.get_input_blob().shape)[0]
+  deproc_img=net.transformer.deprocess(net.inputs[0],data)
+  B=np.clip(deproc_img,0,1)
+  A=init_img
+
+  print('A',A.shape,A.dtype,A.min(),A.max())
+  print('B',B.shape,B.dtype,B.min(),B.max())
+  skimage.io.imsave('{}/input.png'.format(root_dir),A)
+  skimage.io.imsave('{}/output.png'.format(root_dir),B)
+
+  t1=time.time()
+  print('Finished in {} minutes.'.format((t1-t0)/60.0))
+
 def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc=''):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
@@ -688,88 +884,157 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
-def attr_pairs(attr,index,k):
+def attr_pairs(attr,index,k1,k2):
+  # returns top-k strongest and weakest image indices
   i=list(range(len(attr)))
   if index<0:
     i.sort(key=lambda x: float(attr[x][-index]))
   else:
     i.sort(key=lambda x: -float(attr[x][index]))
-  return i[:k],i[-k:]
+  return i[:k1],i[-k2:]
 
-def deepart_match(prefix='data',blob_names=['conv3_1','conv4_1','conv5_1'],method='matlab',weights=[1e-6]):
+def deepart_match(prefix='data',desc='match',blob_names=['conv3_1','conv4_1','conv5_1'],weights=[1e-5,7.5e-6,5e-6],attr=10,source_k=2000,target_k=2000,test_indices=[0,1,2,3,4],image_dims=(224,224),device_id=0):
   t0=time.time()
 
-  data=np.load('pca.npz')
+  # init result dir
+  root_dir='results_{}'.format(int(round(t0))) if desc=='' else 'results_{}_{}'.format(int(round(t0)),desc)
+  if not os.path.exists(root_dir):
+    os.makedirs(root_dir)
+  def print(*args):
+    with open('{}/log.txt'.format(root_dir),'a') as f:
+      f.write(' '.join(str(x) for x in args)+'\n')
+    sys.stdout.write(' '.join(str(x) for x in args)+'\n')
+  print('root_dir',root_dir)
+  print('prefix',prefix)
+  print('desc',desc)
+  print('blob_names',blob_names)
+  print('weights',weights)
+  print('attr',attr)
+  print('source_k',source_k)
+  print('target_k',target_k)
+  print('test_indices',test_indices)
+
+  # read pca matrices
+  data=np.load('{}_pca.npz'.format(prefix))
   U=data['U']
   T=data['T']
   mu=data['mu']
+  shape=data['shape'].item()
+  del data
   print('U',U.shape,U.dtype,U.min(),U.max())
   print('T',T.shape,T.dtype,T.min(),T.max())
   print('mu',mu.shape,mu.dtype,mu.min(),mu.max())
+  print('shape',shape)
 
+  # setup source and target distributions
   _,_,lfwattr=read_lfw_attributes()
-  # 8 is Youth
-  source_indices,target_indices=attr_pairs(lfwattr,8,2000)
-  print('source',source_indices[:5])
-  print('target',target_indices[:5])
-
-  test_indices=[0]
-  P=T[source_indices].astype(np.float64)
-  Q=T[target_indices].astype(np.float64)
+  if attr>=0:
+    target_indices,source_indices=attr_pairs(lfwattr,attr,target_k,source_k)
+  else:
+    source_indices,target_indices=attr_pairs(lfwattr,-attr,source_k,target_k)
+  print('source_indices',source_indices)
+  print('target_indices',target_indices)
+  P=T[source_indices]
+  Q=T[target_indices]
   print('P',P.shape,P.dtype,P.min(),P.max())
   print('Q',Q.shape,Q.dtype,Q.min(),Q.max())
+
+  # match target
   allF=[]
   for i in test_indices:
-    x_0,x,r=matchmmd.match_distribution(T[i].astype(np.float64),P,Q,weights)
+    x_0,x,r=matchmmd.match_distribution(T[i],P,Q,weights)
+    print('test_index',i)
     print('x_0',x_0.shape,x_0.dtype,x_0.min(),x_0.max())
     print('x',x.shape,x.dtype,x.min(),x.max())
     print('r',r.shape,r.dtype,r.min(),r.max())
     F=x.dot(U)+mu
     print('F',F.shape,F.dtype,F.min(),F.max())
-    R=r.dot(U)
-    print('R',R.shape,R.dtype,R.min(),R.max())
     allF.append(F)
 
   F=np.asarray(allF,dtype=np.float32)
   F=F.reshape(F.shape[0]*F.shape[1],-1)
   print('F',F.shape,F.dtype,F.min(),F.max())
-  # temp code
-  h5f=h5py.File('out_conv3_1.h5','w')
-  h5f.create_dataset('DS',data=F[:,:256*32*32].reshape(-1,256,32,32))
-  h5f.close()
-  h5f=h5py.File('out_conv4_1.h5','w')
-  h5f.create_dataset('DS',data=F[:,256*32*32:256*32*32+512*16*16].reshape(-1,512,16,16))
-  h5f.close()
-  h5f=h5py.File('out_conv5_1.h5','w')
-  h5f.create_dataset('DS',data=F[:,256*32*32+512*16*16:].reshape(-1,512,8,8))
-  h5f.close()
+  index=0
+  for k in blob_names:
+    size=np.prod(shape[k][1:])
+    h5f=h5py.File('{}/{}_{}.h5'.format(root_dir,desc,k),'w')
+    h5f.create_dataset('DS',data=F[:,index:index+size].reshape(*shape[k]))
+    h5f.close()
+    index=index+size
+ 
+  deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=root_dir+'/'+desc,max_iter=3000,test_indices=list(np.repeat(test_indices,len(weights))),data_indices=None,image_dims=image_dims,hybrid_names=['conv1_1','conv2_1'],hybrid_weights=[0.02,0.02],dataset='lfw',desc=desc+'_reconstruct',device_id=device_id)
 
-def deepart_pca(prefix='data',blob_names=['conv4_1','conv5_1'],method='matlab'):
-#def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,nlm=(3,21,0.03),hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc=''):
+  print('Finished in {} minutes.'.format((time.time()-t0)/60.0))
 
+class EconomyPCA:
+  def __init__(self):
+    pass
+  def fit_transform(self,F):
+    # F is N x P
+    print('F',F.shape,F.dtype,F.min(),F.max(),(F==0).sum(),((F!=0).sum(axis=0)==0).sum())
+    t0=time.time()
+    FFT=np.dot(F,F.T)
+    print('F.F^T in {} minutes.'.format((time.time()-t0)/60.0))
+    sys.stdout.flush()
+    t0=time.time()
+    a,V=np.linalg.eigh(FFT)
+    print('a',a.shape,a.dtype,a.min(),a.max())
+    print('V',V.shape,V.dtype)
+    print('eigh in {} minutes.'.format((time.time()-t0)/60.0))
+    sys.stdout.flush()
+    t0=time.time()
+    W=np.dot(F.T,V)
+    print('W',W.shape,W.dtype)
+    print('F^T.V in {} minutes.'.format((time.time()-t0)/60.0))
+    sys.stdout.flush()
+    t0=time.time()
+    b=np.sqrt(np.abs(a))*np.sign(a)
+    W=W/b
+    print('b',b.shape,b.dtype)
+    print('W',W.shape,W.dtype)
+    G=np.dot(F,W)
+    print('G',G.shape,G.dtype)
+    self.W=W
+    print('normalization and transform in {} minutes.'.format((time.time()-t0)/60.0))
+    sys.stdout.flush()
+    return G
+  def inverse_transform(self,G):
+    return np.dot(G,self.W.T)
+
+def deepart_pca(prefix='data',blob_names=['conv3_1','conv4_1','conv5_1'],method='economy',dtype='float32'):
   t0=time.time()
+  print('method',method)
+  print('blob_names',blob_names)
+  print('prefix',prefix)
+
   # read features
   h5f={}
   F=[]
+  shape={}
   for k in blob_names:
     assert os.path.exists('{}_{}.h5'.format(prefix,k))
     h5f[k]=h5py.File('{}_{}.h5'.format(prefix,k),'r')
     print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
     N=h5f[k]['DS'].shape[0]
-    F.append(np.asarray(h5f[k]['DS'],dtype=np.float32).reshape(N,-1))
+    shape[k]=(-1,)+tuple(h5f[k]['DS'].shape[1:])
+    F.append(np.asarray(h5f[k]['DS'],dtype=dtype).reshape(N,-1))
   for k in h5f:
     h5f[k].close()
   del h5f
   F=np.concatenate(F,axis=1)
+  #F=F[::10,::10] # debug
   N=F.shape[0]
   print('Memory: {} GB'.format(resource.getrusage(resource.RUSAGE_SELF)[2]*1024/(2**30)))
   print('N',N)
   print('F',F.shape,F.dtype,F.min(),F.max(),(F==0).sum(),((F!=0).sum(axis=0)==0).sum())
+  print('shape',shape)
+
   mu=F.mean(axis=0)
   print('mu',mu.shape,mu.dtype,mu.min(),mu.max())
-  print('method',method)
+  sys.stdout.flush()
   if method=='matlab':
-    # Run deepart_pca.m
+    # First, run deepart_pca.m
+    # Then, run this code (which merely saves it as npz)
     h5f=h5py.File('pca_U.h5','r')
     U=np.copy(h5f['DS'])
     h5f.close()
@@ -784,35 +1049,23 @@ def deepart_pca(prefix='data',blob_names=['conv4_1','conv5_1'],method='matlab'):
     print('mu',mu.shape,mu.dtype,mu.min(),mu.max())
     F2=T.dot(U)+mu
     print('F2',F2.shape,F2.dtype,F2.min(),F2.max())
-    np.savez('pca.npz',U=U,T=T,mu=mu)
-    return
-  elif method=='pca':
-    pca=sklearn.decomposition.PCA(n_components=N,copy=False,whiten=False)
-  elif method=='randpca':
-    pca=sklearn.decomposition.RandomizedPCA(n_components=N,copy=False,whiten=False,random_state=123)
-  elif method=='truncsvd':
-    np.random.seed(123)
-    pca=sklearn.decomposition.TruncatedSVD(n_components=N)
-    #pca=sklearn.decomposition.TruncatedSVD(n_components=N,algorithm='arpack')
+    np.savez('{}_pca.npz'.format(prefix),U=U,T=T,mu=mu,shape=shape)
+    print('Wrote {}_pca.npz'.format(prefix))
+  elif method=='economy':
+    pca=EconomyPCA()
+    pca.mu=mu
+    G=pca.fit_transform(F-pca.mu)
+    F2=pca.inverse_transform(G)+pca.mu
+    print('G',G.shape,G.dtype,G.min(),G.max())
+    print('F2',F2.shape,F2.dtype,F2.min(),F2.max())
+    np.savez('{}_pca.npz'.format(prefix),U=pca.W.T,T=G,mu=pca.mu,shape=shape)
+    print('Wrote {}_pca.npz'.format(prefix))
   else:
     raise ValueError
-  pca.mu=mu
-  if method=='truncsvd':
-    G=pca.fit_transform(scipy.sparse.csr_matrix(F-pca.mu))
-  else:
-    G=pca.fit_transform(F-pca.mu)
-  F2=pca.inverse_transform(G)+pca.mu
-  print('G',G.shape,G.dtype,G.min(),G.max())
-  print('F2',F2.shape,F2.dtype,F2.min(),F2.max())
-  if method=='pca':
-    print('noise_variance',pca.noise_variance_)
-  with open('data_pca.pickle','w') as f:
-    f.write(pickle.dumps(pca))
-  # Example reading code
-  with open('data_pca.pickle') as f:
-    pca=pickle.loads(f.read())
-  F3=pca.inverse_transform(G)+pca.mu
-  print('F3',F3.shape,F3.dtype,F3.min(),F3.max())
+
+  # Example reading code:
+  # data=np.load('data_pca.npz')
+  # shape=data['shape'].item()
 
   t1=time.time()
   print('Memory: {} GB'.format(resource.getrusage(resource.RUSAGE_SELF)[2]*1024/(2**30)))
@@ -872,14 +1125,32 @@ if __name__ == '__main__':
     args=filter_args(args,params,params_desc)
     deepart_extract(args[0],model=model,image_dims=image_dims,prefix=prefix)
   elif args[0]=='pca':
-    deepart_pca()
+    args=args[1:]
+    method='economy'
+    blob_names=['conv3_1','conv4_1','conv5_1']
+    #blob_names=['conv5_1'] # debug
+    prefix='data'
+    dtype='float32'
+    params=('method','blob_names','prefix','dtype')
+    params_desc={'method': 'matlab | economy', 'dtype': 'float32 | float64'}
+    args=filter_args(args,params,params_desc)
+    deepart_pca(method=method,blob_names=blob_names,prefix=prefix)
   elif args[0]=='match':
     args=args[1:]
-    weights=[5e-5]
-    params=('weights',)
+    prefix='data'
+    desc='match'
+    blob_names=['conv3_1','conv4_1','conv5_1']
+    weights=[1e-5,7.5e-6,5e-6]
+    attr=10
+    source_k=2000
+    target_k=2000
+    test_indices=[6005, 3659, 8499, 12217, 9982, 4322, 10449, 10969, 4245, 7028] # randomly selected
+    image_dims=(125,125)
+    device_id=0
+    params=('prefix','desc','blob_names','weights','attr','source_k','target_k','test_indices','image_dims','device_id')
     params_desc={}
     args=filter_args(args,params,params_desc)
-    deepart_match(weights=weights)
+    deepart_match(prefix=prefix,desc=desc,blob_names=blob_names,weights=weights,attr=attr,source_k=source_k,target_k=target_k,test_indices=test_indices,image_dims=image_dims,device_id=device_id)
   elif args[0]=='reconstruct':
     args=args[1:]
     model='vgg'
@@ -904,6 +1175,33 @@ if __name__ == '__main__':
     params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight', 'dataset': 'Original image filenames read from dataset/DATASET.txt', 'desc': 'Will be appended to the results directory name'}
     args=filter_args(args,params,params_desc)
     deepart_reconstruct(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,blob_names=blob_names,blob_weights=blob_weights,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init,dataset=dataset,desc=desc)
+  elif args[0]=='compare':
+    args=args[1:]
+    deepart_compare(inputs=args)
+  elif args[0]=='edit':
+    args=args[1:]
+    model='vgg'
+    test_indices=None
+    data_indices=None
+    subsample=1
+    max_iter=1
+    image_dims=(250,250)
+    prefix='data'
+    nlm=(3,21,0.03)
+    device_id=0
+    blob_names=['conv3_1','conv4_1','conv5_1']
+    blob_weights=[1,1,1]
+    hybrid_names=['conv1_1','conv2_1']
+    hybrid_weights=[0.02,0.02]
+    tv_lambda=0.001
+    tv_beta=2
+    gaussian_init=False
+    dataset='lfw'
+    desc='edit'
+    params=('model','test_indices','data_indices','subsample','max_iter','image_dims','prefix','device_id','nlm','blob_names','blob_weights','hybrid_names','hybrid_weights','tv_lambda','tv_beta','gaussian_init','dataset','desc')
+    params_desc={'model': 'vgg | vggface','nlm': 'Non-local means parameters (window, distance, h_smooth_strength)', 'test_indices': 'which dataset images to compare against', 'data_indices': 'which entries in the h5 files to compute', 'hybrid_names': 'Must be in the same order as in the network', 'tv_lambda': 'Total variation loss weight', 'dataset': 'Original image filenames read from dataset/DATASET.txt', 'desc': 'Will be appended to the results directory name'}
+    args=filter_args(args,params,params_desc)
+    deepart_edit(model=model,test_indices=test_indices,data_indices=data_indices,subsample=subsample,max_iter=max_iter,image_dims=image_dims,prefix=prefix,device_id=device_id,nlm=nlm,blob_names=blob_names,blob_weights=blob_weights,hybrid_names=hybrid_names,hybrid_weights=hybrid_weights,tv_lambda=tv_lambda,tv_beta=tv_beta,gaussian_init=gaussian_init,dataset=dataset,desc=desc)
   elif args[0]=='compare':
     args=args[1:]
     deepart_compare(inputs=args)
