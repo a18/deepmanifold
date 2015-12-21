@@ -1122,7 +1122,7 @@ if __name__ == '__main__':
     prefix='data'
     device_id=0
     params=('model','image_dims','prefix','device_id')
-    params_desc={'model': 'vgg | vggface'}
+    params_desc={'model': 'vgg | vggface', 'prefix': 'Prefix for output files'}
     args=filter_args(args,params,params_desc)
     deepart_extract(args[0],model=model,image_dims=image_dims,prefix=prefix,device_id=device_id)
   elif args[0]=='pca':
@@ -1133,7 +1133,7 @@ if __name__ == '__main__':
     prefix='data'
     dtype='float32'
     params=('method','blob_names','prefix','dtype')
-    params_desc={'method': 'matlab | economy', 'dtype': 'float32 | float64'}
+    params_desc={'method': 'matlab | economy', 'dtype': 'float32 | float64', 'prefix': 'Prefix for output file and feature vector files'}
     args=filter_args(args,params,params_desc)
     deepart_pca(method=method,blob_names=blob_names,prefix=prefix)
   elif args[0]=='match':
@@ -1149,7 +1149,7 @@ if __name__ == '__main__':
     image_dims=(125,125)
     device_id=0
     params=('prefix','desc','blob_names','weights','attr','source_k','target_k','test_indices','image_dims','device_id')
-    params_desc={}
+    params_desc={'prefix': 'Prefix for input files', 'desc': 'Will be appended to the results directory name', 'weights': 'Budget of change parameter', 'attr': 'Target attribute (or source attribute if negative)', 'source_k': 'Number of images in source set', 'target_k': 'Number of images in target set', 'test_indices': 'Zero-indexed list of images to optimize'}
     args=filter_args(args,params,params_desc)
     deepart_match(prefix=prefix,desc=desc,blob_names=blob_names,weights=weights,attr=attr,source_k=source_k,target_k=target_k,test_indices=test_indices,image_dims=image_dims,device_id=device_id)
   elif args[0]=='reconstruct':
