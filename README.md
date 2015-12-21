@@ -1,9 +1,14 @@
 # deepart
 
-Run `./scripts/install/install_all.sh` to install. It will install python dependencies, download caffe, compile caffe, and download the necessary weight file.
+Run `./scripts/install/install_all.sh` to install. This will install python dependencies, download caffe, compile caffe, and download the necessary weight file. It is assumed that caffe lives at `../caffe` and it will not be downloaded if it already exists.
+
+The primary script is `gen_deepart.py`. `./gen_deepart.py COMMAND --help` will list command-line options for any of the following commands: extract, pca, match and reconstruct.
 
 Run `./gen_deepart.py extract dataset/lfw.txt` to extract ConvNet features for the LFW dataset.
 
 Run `./gen_deepart.py pca` to compute the PCA projection. Note: you will need 85 GB (128 GB for float64) of memory.
 
-Run `./gen_deepart.py match` to produce a synthetic aging demonstration. The match command will move a test image (`--test_indices`) away from a source distribution and toward a target distribution. The size of each distribution and the selected attribute are set by `--source_k`, `--target_k`, and `--attr`. The match result is stored in a directory named `results_TIME_match` where `TIME` is seconds after the UNIX epoch.
+Run `./gen_deepart.py match` to produce a synthetic aging demonstration. The match command will move a test image (`--test_indices`) away from a source distribution and toward a target distribution. The size of each distribution and the selected attribute are set by `--source_k`, `--target_k`, and `--attr` (e.g., 10 for Senior). Look inside `dataset/lfw_attributes.txt` for a list of attributes. The latent vector results are stored in a directory named `results_TIME_match` where `TIME` is seconds after the UNIX epoch.
+
+The preceeding command will automatically reconstruct images from latent space vectors with default reconstruction settings. Run ``./gen_deepart.py reconstruct --test_indices='[6005, 3659, 8499, 12217, 9982, 4322, 10449, 10969, 4245, 7028]' --prefix=results_1450738103_match/match --desc=match_reconstruct`` to reconstruct images. This will allow you to specify the reconstruction parameters.
+
