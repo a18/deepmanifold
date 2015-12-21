@@ -452,13 +452,13 @@ def lfw_filename(person,seq):
   person=person.replace(' ','_')
   return '{}/{}_{:04}.jpg'.format(person,person,int(seq))
 
-def deepart_extract(ipath,prefix='data',model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],image_dims=(224,224)):
+def deepart_extract(ipath,prefix='data',model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],image_dims=(224,224),device_id=0):
   # ipath = text file listing one image per line
   # model = vgg | vggface
   # blob_names = list of blobs to extract
   rlprint=ratelimit(interval=60)(print)
 
-  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims)
+  caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims,device_id=device_id)
   h5f={}
   ds={}
     
@@ -1120,10 +1120,11 @@ if __name__ == '__main__':
     model='vgg'
     image_dims=(125,125)
     prefix='data'
-    params=('model','image_dims','prefix')
+    device_id=0
+    params=('model','image_dims','prefix','device_id')
     params_desc={'model': 'vgg | vggface'}
     args=filter_args(args,params,params_desc)
-    deepart_extract(args[0],model=model,image_dims=image_dims,prefix=prefix)
+    deepart_extract(args[0],model=model,image_dims=image_dims,prefix=prefix,device_id=device_id)
   elif args[0]=='pca':
     args=args[1:]
     method='economy'
