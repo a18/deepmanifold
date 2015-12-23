@@ -61,7 +61,7 @@ from gen_deepart import attr_pairs
 _,_,lfwattr=read_lfw_attributes()
 # 8 is Youth
 # 10 is Senior
-target_indices,source_indices=attr_pairs(lfwattr,10,2000)
+target_indices,source_indices=attr_pairs(lfwattr,10,2000,2000)
 print 'source',source_indices[:5]
 print 'target',target_indices[:5]
 
