@@ -65,8 +65,8 @@ def witness_fn(r,x,P,Q,rbf_var,weight,kernel):
 def match_distribution(x,P,Q,weights,max_iter=5,rbf_var=1e4):
   print('match_distribution()')
   print('x',x.shape,x.dtype,x.min(),x.max())
-  print('P',P.shape,P.dtype,P.min(),P.max())
-  print('Q',Q.shape,Q.dtype,Q.min(),Q.max())
+  print('P',P.shape,P.dtype)
+  print('Q',Q.shape,Q.dtype)
   print('weights',weights)
 
   # z score
@@ -82,8 +82,8 @@ def match_distribution(x,P,Q,weights,max_iter=5,rbf_var=1e4):
   Q=(Q-loc)/sigma
   x_0=x*sigma+loc
   print('x',x.shape,x.dtype,x.min(),x.max())
-  print('P',P.shape,P.dtype,P.min(),P.max())
-  print('Q',Q.shape,Q.dtype,Q.min(),Q.max())
+  print('P',P.shape,P.dtype)
+  print('Q',Q.shape,Q.dtype)
   print('x_0',x_0.shape,x_0.dtype,x_0.min(),x_0.max())
   
   x_result=[]

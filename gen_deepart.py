@@ -936,8 +936,8 @@ def deepart_match(prefix='data',desc='match',blob_names=['conv3_1','conv4_1','co
   print('target_indices',target_indices)
   P=T[source_indices]
   Q=T[target_indices]
-  print('P',P.shape,P.dtype,P.min(),P.max())
-  print('Q',Q.shape,Q.dtype,Q.min(),Q.max())
+  print('P',P.shape,P.dtype)
+  print('Q',Q.shape,Q.dtype)
 
   # match target
   allF=[]

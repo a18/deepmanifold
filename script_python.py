@@ -72,8 +72,8 @@ print 'feat_img[:5]',T[0,:5]
 #Q=T[target_indices].astype(np.float64)
 P=T[source_indices]
 Q=T[target_indices]
-print 'P',P.shape,P.dtype,P.min(),P.max()
-print 'Q',Q.shape,Q.dtype,Q.min(),Q.max()
+print 'P',P.shape,P.dtype
+print 'Q',Q.shape,Q.dtype
 
 ## Match distributions
 
