@@ -961,7 +961,11 @@ def deepart_match(prefix='data',desc='match',blob_names=['conv3_1','conv4_1','co
     h5f.create_dataset('DS',data=F[:,index:index+size].reshape(*shape[k]))
     h5f.close()
     index=index+size
- 
+
+  del U
+  del T
+  del F
+
   deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=root_dir+'/'+desc,max_iter=3000,test_indices=list(np.repeat(test_indices,len(weights))),data_indices=None,image_dims=image_dims,hybrid_names=['conv1_1','conv2_1'],hybrid_weights=[0.02,0.02],dataset='lfw',desc=desc+'_reconstruct',device_id=device_id)
 
   print('Finished in {} minutes.'.format((time.time()-t0)/60.0))
