@@ -861,7 +861,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     #print('B',B.shape,B.dtype,B.min(),B.max())
     skimage.io.imsave('{}/{}-original.png'.format(root_dir,basename),A)
     skimage.io.imsave('{}/{}.png'.format(root_dir,basename2),B)
-    C=non_local_means('{}/{}.png'.format(root_dir,basename2),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename2))
+    #C=non_local_means('{}/{}.png'.format(root_dir,basename2),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename2))
     caption='psnr {:.4}, ssim {:.4}'.format(measure.measure_PSNR(A,B,1).mean(),measure.measure_SSIM(A,B,1).mean())
     subprocess.check_call('convert {root_dir}/{basename}-original.png {root_dir}/{basename2}.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval_{basename2}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),basename2=pipes.quote(basename2),ipath=pipes.quote(ipath),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
     psnr.append(measure.measure_PSNR(A,B,1).mean())
