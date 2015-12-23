@@ -34,18 +34,26 @@ def witness_fn(r,x,P,Q,rbf_var,weight,kernel):
     loss=0.5*((xmQ**2).sum()/M-(xmP**2).sum()/N)+(r**2).sum()*weight
     grad=xmQ.sum(axis=0)/M-xmP.sum(axis=0)/N+2*r*weight
   elif kernel=='rbf':
-    xmP=x-P
-    xmQ=x-Q
-    #print('xmP',xmP.shape,xmP.dtype,xmP.min(),xmP.max())
-    #print('xmQ',xmQ.shape,xmQ.dtype,xmQ.min(),xmQ.max())
-    kxP=np.exp(-(xmP**2).sum(axis=1)/(2*rbf_var))
-    kxQ=np.exp(-(xmQ**2).sum(axis=1)/(2*rbf_var))
-    #print('kxP',kxP.shape,kxP.dtype,kxP.min(),kxP.max())
-    #print('kxQ',kxQ.shape,kxQ.dtype,kxQ.min(),kxQ.max())
-    assert kxP.shape==(N,)
-    assert kxQ.shape==(M,)
-    loss=kxP.sum()/N-kxQ.sum()/M+(r**2).sum()*weight
-    grad=(-kxP.reshape(N,1)*xmP/N/rbf_var).sum(axis=0)+(kxQ.reshape(M,1)*xmQ/M/rbf_var).sum(axis=0)+2*r*weight
+    if N>0:
+      xmP=x-P
+      xmQ=x-Q
+      #print('xmP',xmP.shape,xmP.dtype,xmP.min(),xmP.max())
+      #print('xmQ',xmQ.shape,xmQ.dtype,xmQ.min(),xmQ.max())
+      kxP=np.exp(-(xmP**2).sum(axis=1)/(2*rbf_var))
+      kxQ=np.exp(-(xmQ**2).sum(axis=1)/(2*rbf_var))
+      #print('kxP',kxP.shape,kxP.dtype,kxP.min(),kxP.max())
+      #print('kxQ',kxQ.shape,kxQ.dtype,kxQ.min(),kxQ.max())
+      assert kxP.shape==(N,)
+      assert kxQ.shape==(M,)
+      loss=kxP.sum()/N-kxQ.sum()/M+(r**2).sum()*weight
+      grad=(-kxP.reshape(N,1)*xmP/N/rbf_var).sum(axis=0)+(kxQ.reshape(M,1)*xmQ/M/rbf_var).sum(axis=0)+2*r*weight
+    else:
+      # source set is empty
+      xmQ=x-Q
+      kxQ=np.exp(-(xmQ**2).sum(axis=1)/(2*rbf_var))
+      assert kxQ.shape==(M,)
+      loss=kxQ.sum()/M+(r**2).sum()*weight
+      grad=(kxQ.reshape(M,1)*xmQ/M/rbf_var).sum(axis=0)+2*r*weight
   else:
     raise ValueError('Unsupported kernel: {}'.format(kernel))
   #print('loss',loss)

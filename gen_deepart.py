@@ -891,7 +891,7 @@ def attr_pairs(attr,index,k1,k2):
     i.sort(key=lambda x: float(attr[x][-index]))
   else:
     i.sort(key=lambda x: -float(attr[x][index]))
-  return i[:k1],i[-k2:]
+  return i[:k1],(i[-k2:] if k2>0 else [])
 
 def deepart_match(prefix='data',desc='match',blob_names=['conv3_1','conv4_1','conv5_1'],weights=[1e-5,7.5e-6,5e-6],attr=10,source_k=2000,target_k=2000,test_indices=[0,1,2,3,4],image_dims=(224,224),device_id=0):
   t0=time.time()
