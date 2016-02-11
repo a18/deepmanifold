@@ -1,4 +1,4 @@
-# deepart
+# deepmanifold
 
 Run `./scripts/install/install_all.sh` to install. This will install python dependencies, download caffe, compile caffe, and download the necessary weight file. It is assumed that caffe lives at `../caffe` and it will not be downloaded if it already exists.
 
