@@ -86,6 +86,6 @@ for k in blob_names:
 
 from gen_deepart import deepart_reconstruct
 
-test_indices2=test_indices*len(weights)
+test_indices2=list(numpy.repeat(test_indices,len(weights)))
 deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=3000,test_indices=test_indices2,data_indices=None,image_dims=(125,125),hybrid_names=['conv1_1','conv2_1'],hybrid_weights=[0.02,0.02],dataset='lfw',desc='testpy')
 
