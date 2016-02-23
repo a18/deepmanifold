@@ -143,10 +143,14 @@ def witness_fn2(r,x,FFT,N,M,rbf_var,weight,verbose,checkrbf):
   eP=Z*(AP.dot(xmP.T)).sum(axis=1)
   eQ=Z*(AQ.dot(xmQ.T)).sum(axis=1)
   if checkrbf:
+    print('rbf',eP.var(),eQ.var())
     if eP.mean()<-10 or eQ.mean()<-10:
       print('WARNING: rbf_var is too small (eP.mean()={}, eQ.mean={})'.format(eP.mean(),eQ.mean()))
   KP=np.exp(eP)
   KQ=np.exp(eQ)
+  if checkrbf:
+    print('KP',KP[:5],KP.mean(),KP.var())
+    print('KQ',KQ[:5],KQ.mean(),KQ.var())
   B=FFT.dot(r)
 
   loss=(1.0/N)*KP.sum()-(1.0/M)*KQ.sum()+weight*(r.dot(B))
@@ -174,8 +178,8 @@ def manifold_traversal(F,N,M,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgr
   r_result=[]
   r=np.zeros(len(F))
   x=np.zeros(len(F))
-  FFT=F.dot(F.T) # K x K
   x[-1]=1
+  FFT=F.dot(F.T) # K x K
   for weight in weights:
 
     if checkgrad:
@@ -197,3 +201,31 @@ def manifold_traversal(F,N,M,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgr
     r=r_opt
   return np.asarray(xpr_result),np.asarray(r_result)
 
+if __name__=='__main__':
+  N=6
+  M=6
+  D=20
+  P=np.random.random((N,D))+0.1
+  Q=np.random.random((M,D))-0.1
+  X=np.random.random((D,))
+  F=np.concatenate([P,Q,X.reshape(1,D)])
+  rbf_var=1e0
+  weight=1e-3
+  r=np.zeros(len(F))
+  x=np.zeros(len(F))
+  x[-1]=1
+  FFT=F.dot(F.T) # K x K
+  def f(*args):
+    return witness_fn2(*args)[0]
+  def g(*args):
+    return witness_fn2(*args)[1]
+  print('Checking gradient ...')
+  err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,rbf_var,weight,False,True))
+  print('gradient error',err)
+  assert err<1e-5
+  r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,rbf_var,weight,False,True),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+  print(r_opt[:N],r_opt[:N].var())
+  print(r_opt[N:N+M],r_opt[N:N+M].var())
+  print(r_opt[-1])
+
+  # TODO test a multimodal Q
