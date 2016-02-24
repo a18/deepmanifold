@@ -194,7 +194,7 @@ def manifold_traversal(F,N,M,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgr
 
     r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
     if verbose:
-      print('r_opt',r_opt.shape,r_opt.dtype,r_opt.min(),r_opt.max(),np.linalg.norm(r_opt))
+      print('r_opt',r_opt.shape,r_opt.dtype,r_opt.min(),r_opt.max(),r_opt.sum(),np.linalg.norm(r_opt))
       print('r_opt values',r_opt[:5],'...',r_opt[N:N+5],'...',r_opt[-1])
     xpr_result.append(x+r_opt)
     r_result.append(r_opt)
