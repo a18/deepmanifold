@@ -48,17 +48,21 @@ blacklist=[
 ]
 
 def download_if_needed(url):
-  basename=urlparse.urlparse(url).path.replace('/','_')
+  basename=urlparse.urlparse(url).path.replace('/','_').replace('~','_')
   if basename in blacklist:
     raise IOError
-  subdir=os.path.splitext(basename)[0][-1]
+  try:
+    subdir=os.path.splitext(basename)[0][-1]
+  except:
+    subdir='_'
   opath='images/imagenet/{}/{}'.format(subdir,basename)
   if not os.path.exists(os.path.split(opath)[0]):
     os.makedirs(os.path.split(opath)[0])
   if not os.path.exists(opath):
+    print('Downloading {}'.format(url))
     try:
       time.sleep(0.2) # don't hammer the server
-      r=requests.get(url)
+      r=requests.get(url,timeout=30)
       with open(opath,'wb') as f:
         f.write(r.content)
       I=skimage.io.imread(opath)
@@ -67,11 +71,15 @@ def download_if_needed(url):
       pass
     try:
       time.sleep(1) # second try, give them some time so their server can wake up
-      r=requests.get(url)
+      r=requests.get(url,timeout=30)
       with open(opath,'wb') as f:
-        f.write(io.BytesIO(r.content))
+        f.write(r.content)
       I=skimage.io.imread(opath)
+      return opath
     except IOError:
+      # write a zero-length file to skip future download attempts
+      with open(opath,'wb') as f:
+        pass
       raise
   else:
     try:
@@ -148,6 +156,9 @@ if __name__=='__main__':
   Purl=Purl[:source_k]
   Qurl=Qurl[:target_k]
   Xurl=Xurl[:test_k]
+  # force X to not be in the "training" set
+  Purl=[x for x in Purl if x not in Xurl]
+  Qurl=[x for x in Qurl if x not in Xurl]
 
   # download images (if needed)
   ipath=[]
@@ -174,8 +185,8 @@ if __name__=='__main__':
   Q=ipath[N:N+M]
   X=ipath[N+M:]
 
-  print(ipath)
   print('{} source, {} target, {} test'.format(N,M,len(X)))
+  assert N>0 and M>0 and len(X)>0
 
   blob_names=['conv3_1','conv4_1','conv5_1']
 
