@@ -725,7 +725,7 @@ def deepart_edit(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_wei
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
 
-def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc=''):
+def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],blob_weights=[1,1,1],prefix='data',subsample=1,max_iter=2000,test_indices=None,data_indices=None,image_dims=(224,224),device_id=0,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,gaussian_init=False,dataset='lfw',desc='',dataset_F=None,dataset_slice=None,dataset_shape=None):
   # model = vgg | vggface
   # blob_names = list of blobs to match (must be in the right order, front to back)
   # blob_weights = cost function weight for each blob
@@ -768,24 +768,37 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   rlprint=ratelimit(interval=60)(print)
 
   # read features
-  h5f={}
-  for k in blob_names:
-    assert os.path.exists('{}_{}.h5'.format(prefix,k))
-    h5f[k]=h5py.File('{}_{}.h5'.format(prefix,k),'r')
-    print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
-    N=h5f[k]['DS'].shape[0]
-  #_,_,lfwattr=read_lfw_attributes()
-  with open('dataset/{}.txt'.format(dataset)) as f:
-    original_names=[x.strip() for x in f.readlines()]
-  if data_indices is None:
-    # assume you want to process everything
-    data_indices=list(range(N))
+  if isinstance(dataset,list):
+    # dataset is a list of image filepaths
+    # dataset_F is features
+    # dataset_slice is blob slices
+    # dataset_shape is blob shapes
+    # dataset_F is N rows of P, M rows of Q, len(X) rows of X, X*weights rows of X'
+    # data_indices is indices of dataset_F to reconstruct
+    # test_indices is indices of dataset_F to compare against
+    # e.g., data_indices [9, 10, 11, 12, 13, 14, 15, 16]
+    # e.g., test_indices [7, 7, 7, 7, 8, 8, 8, 8]
+
+    original_names=dataset
   else:
-    # require that you specify the data -> dataset mapping
-    assert not test_indices is None
-    assert len(data_indices)==len(test_indices)
-  if test_indices is None:
-    test_indices=list(range(N))
+    h5f={}
+    for k in blob_names:
+      assert os.path.exists('{}_{}.h5'.format(prefix,k))
+      h5f[k]=h5py.File('{}_{}.h5'.format(prefix,k),'r')
+      print('h5f',k,h5f[k]['DS'].shape,h5f[k]['DS'].dtype)
+      N=h5f[k]['DS'].shape[0]
+    #_,_,lfwattr=read_lfw_attributes()
+    with open('dataset/{}.txt'.format(dataset)) as f:
+      original_names=[x.strip() for x in f.readlines()]
+    if data_indices is None:
+      # assume you want to process everything
+      data_indices=list(range(N))
+    else:
+      # require that you specify the data -> dataset mapping
+      assert not test_indices is None
+      assert len(data_indices)==len(test_indices)
+    if test_indices is None:
+      test_indices=list(range(N))
 
   for x in hybrid_names:
     assert x not in blob_names
@@ -800,11 +813,10 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     if j % subsample: continue
     np.random.seed(123)
 
-    #ipath='images/lfw/'+lfw_filename(lfwattr[i][0],lfwattr[i][1])
-    ipath='images/'+original_names[i]
-    #person=lfwattr[i][0]
-    #seq=lfwattr[i][1]
-    #basename=os.path.splitext(os.path.split(lfw_filename(person,seq))[1])[0]
+    if isinstance(dataset,list):
+      ipath=original_names[i]
+    else:
+      ipath='images/'+original_names[i]
     basename=os.path.splitext(os.path.split(ipath)[1])[0]
     if basename not in basename_uid:
       basename_uid[basename]=0
@@ -829,11 +841,20 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     for k,v in zip(blob_names,blob_weights):
       if len(targets)>0 and targets[-1][3]==v:
         targets[-1][1].append(k)
-        target_data_list[-1][k]=h5f[k]['DS'][data_indices[j]]
+        if isinstance(dataset,list):
+          target_data_list[-1][k]=dataset_F[data_indices[j]][dataset_slice[k]].reshape(*dataset_shape[k])
+        else:
+          target_data_list[-1][k]=h5f[k]['DS'][data_indices[j]]
       else:
         targets.append((None,[k],False,v))
-        target_data_list.append({k: h5f[k]['DS'][data_indices[j]]})
-      print('target',k,v,h5f[k]['DS'][data_indices[j]].shape,h5f[k]['DS'][data_indices[j]].dtype)
+        if isinstance(dataset,list):
+          target_data_list.append({k: dataset_F[data_indices[j]][dataset_slice[k]].reshape(*dataset_shape[k])})
+        else:
+          target_data_list.append({k: h5f[k]['DS'][data_indices[j]]})
+      if isinstance(dataset,list):
+        print('target',k,v,dataset_shape[k],dataset_F.dtype)
+      else:
+        print('target',k,v,h5f[k]['DS'][data_indices[j]].shape,h5f[k]['DS'][data_indices[j]].dtype)
     #target_data_list = gen_target_data(root_dir, caffe, net, targets)
 
     # Set initial value and reshape net
@@ -871,8 +892,11 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
 
     work_done=work_done+1*subsample
     rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
-  for k in h5f:
-    h5f[k].close()
+  if isinstance(dataset,list):
+    pass
+  else:
+    for k in h5f:
+      h5f[k].close()
 
   print('psnr',psnr)
   print('ssim',ssim)
