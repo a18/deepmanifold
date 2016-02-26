@@ -805,6 +805,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   assert len(hybrid_names)==len(hybrid_weights)
 
   # processing
+  result=[]
   psnr=[]
   ssim=[]
   work_units,work_done,work_t0=len(test_indices),0,time.time()
@@ -876,6 +877,7 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     deproc_img=net.transformer.deprocess(net.inputs[0],data)
     A=caffe.io.load_image(ipath)
     B=np.clip(deproc_img,0,1)
+    result.append(B)
     A=caffe.io.resize_image(A,B.shape)
 
     #print('A',A.shape,A.dtype,A.min(),A.max())
@@ -907,6 +909,8 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
 
   t1=time.time()
   print('Finished in {} minutes.'.format((t1-t0)/60.0))
+
+  return root_dir,result
 
 def attr_pairs(attr,index,k1,k2):
   # returns top-k strongest and weakest image indices
