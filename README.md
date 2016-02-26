@@ -1,4 +1,8 @@
-# deepmanifold
+# Deep Manifold Traversal
+
+## PCA deep manifold traversal
+
+See [http://arxiv.org/abs/1511.06421] for an explanation of the method.
 
 Run `./scripts/install/install_all.sh` to install. This will install python dependencies, download caffe, compile caffe, and download the necessary weight file. It is assumed that caffe lives at `../caffe` and it will not be downloaded if it already exists.
 
@@ -12,3 +16,8 @@ Run `./gen_deepart.py match` to produce a synthetic aging demonstration. The mat
 
 The preceeding command reconstructs images with default reconstruction settings. You can run the reconstruct command directly to set different parameters. Example: ``./gen_deepart.py reconstruct --test_indices='[6005, 3659, 8499, 12217, 9982, 4322, 10449, 10969, 4245, 7028]' --prefix=results_1450738103_match/match --desc=match_reconstruct`` is equivalent to the default reconstruction.
 
+## Experimental, no-PCA method
+
+`dmt.py` uses a newer method which does not require running PCA on the entire dataset. This makes it possible to run on larger datasets. Call `dmt.run()` with a list of image pathnames where the first N entires are the source domain, the next M entires are the target domain and the remaining entries are the images to be transformed. See the function documentation for details.
+
+Note: Different datasets may require different lambda weights and rbf kernel variances.
