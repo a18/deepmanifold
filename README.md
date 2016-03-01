@@ -21,7 +21,7 @@ The preceeding command reconstructs images with default reconstruction settings.
 `dmt.py` uses a newer method which does not require running PCA on the entire dataset. This makes it possible to run on larger datasets. Call `dmt.run()` with a list of image pathnames where the first N entires are the source domain, the next M entires are the target domain and the remaining entries are the images to be transformed. See the function documentation for details.
 
 ```python
-ipath = [file1, file2, ...]
+ipath = [source1, source2, ..., sourceN, target1, target2, ..., targetM, image1, image2, ...]
 weights = [lambda1, lambda2, ...]
 XF,F2,root_dir,result = dmt.run(ipath,N,M,'vgg',[125,125],device_id,weights,rbf_var,prefix,3000,False)
 ```
