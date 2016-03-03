@@ -162,6 +162,14 @@ def witness_fn2(r,x,FFT,N,M,L,rbf_var,weight,verbose,checkrbf):
   assert grad.shape==r.shape
   return loss,grad
 
+def zscore_F(F):
+  # F is K x D
+  print('F',F.shape,F.dtype,F.min(),F.max(),F.sum())
+  sigma=F.std(axis=0)
+  loc=F.mean(axis=0)
+  sigma[sigma<1e-10]=1
+  return (F-loc)/sigma,loc,sigma
+
 def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgrad=True,checkrbf=True):
   # returns two arrays, xpr and r
   #   xpr is optimized x+r

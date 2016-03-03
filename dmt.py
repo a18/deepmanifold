@@ -108,7 +108,8 @@ name of the results directory. result is the transformed images.
 
   # Form F (first N rows are P, next M rows are Q, next L are T, last row is x)
   F,F_slice,F_shape=form_F(ipath,featext,blob_names)
-  print('F',F.shape)
+  F,loc,sigma=matchmmd.zscore_F(F)
+  print('F',F.shape,F.dtype)
   print(F_slice)
   print(F_shape)
   XF=F[N+M+L:]
@@ -120,7 +121,7 @@ name of the results directory. result is the transformed images.
     F[N+M+L]=x
     XPR,R=matchmmd.manifold_traversal(F[:N+M+L+1],N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
     print('R',R.shape,R.dtype,R.sum(axis=1))
-    allF2.append(XPR.dot(F[:N+M+L+1]))
+    allF2.append((XPR.dot(F[:N+M+L+1]))*sigma+loc)
     work_done=work_done+1
     rlprint('dmt {}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
   F2=numpy.asarray(allF2,dtype=numpy.float32)
