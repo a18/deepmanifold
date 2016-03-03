@@ -41,6 +41,7 @@ from test_deepart import test_all_gradients
 import measure
 import deepart
 import matchmmd
+import imageutils
 
 def ratelimit(n=0,interval=0.0,timefn=time.time,blocking=False,blockingfn=time.sleep):
   def d(f):
@@ -1106,12 +1107,17 @@ def deepart_pca(prefix='data',blob_names=['conv3_1','conv4_1','conv5_1'],method=
 def deepart_compare(inputs,name='compare'):
   t0=time.time()
   imshape=skimage.io.imread(glob.glob('{}/eval_*'.format(inputs[0]))[0]).shape
+  filelist=[os.path.split(x)[1] for x in sorted(glob.glob('{}/eval_*'.format(inputs[0]))) if all(os.path.exists(os.path.join(y,os.path.split(x)[1])) for y in inputs)]
+  print(filelist)
+  M=numpy.array([skimage.io.imread(os.path.join(y,x)) for x in filelist for y in inputs]).reshape(len(filelist),len(inputs),*imshape)
+  M=imageutils.montage(M)
   inputs=[y for x in inputs for y in glob.glob('{}/eval_*'.format(x))]
   print(inputs)
-  root_dir='results_{}'.format(int(round(t0)))
+  root_dir='results_{}_compare'.format(int(round(t0)))
   if not os.path.exists(root_dir):
     os.makedirs(root_dir)
-  subprocess.check_call('montage -geometry {}x{}+6+6 {} {}/{}.png'.format(imshape[1],imshape[0],' '.join(pipes.quote(x) for x in inputs),root_dir,name),shell=True)
+  skimage.io.imsave('{}/{}.png'.format(root_dir,name),M)
+  #subprocess.check_call('montage -geometry {}x{}+6+6 {} {}/{}.png'.format(imshape[1],imshape[0],' '.join(pipes.quote(x) for x in inputs),root_dir,name),shell=True)
   print('{}/{}.png'.format(root_dir,name))
 
 if __name__ == '__main__':
