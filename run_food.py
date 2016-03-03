@@ -56,9 +56,12 @@ if __name__=='__main__':
   test_set=sorted(glob.glob('images/food-101/images/{}/*.jpg'.format(config['source'])))
   random.seed(123)
   random.shuffle(test_set)
-  ipath3=test_set[:10]
-  ipath1=[x for x in sorted(glob.glob('images/food-101/images/{}/*.jpg'.format(config['source']))) if x not in ipath3]
-  ipath2=[x for x in sorted(glob.glob('images/food-101/images/{}/*.jpg'.format(config['target']))) if x not in ipath3]
+  ipath4=test_set[:10]
+  ipath1=[x for x in sorted(glob.glob('images/food-101/images/{}/*.jpg'.format(config['source']))) if x not in ipath4]
+  ipath2=[x for x in sorted(glob.glob('images/food-101/images/{}/*.jpg'.format(config['target']))) if x not in ipath4]
+  ipath3=[]
+  for y in config['data']:
+    ipath3.extend([x for x in sorted(glob.glob('images/food-101/images/{}/*.jpg'.format(y))) if x not in ipath4])
   random.seed(123)
   random.shuffle(ipath1)
   random.seed(123)
@@ -66,8 +69,9 @@ if __name__=='__main__':
 
   N=len(ipath1)
   M=len(ipath2)
-  ipath=ipath1+ipath2+ipath3
+  L=len(ipath3)
+  ipath=ipath1+ipath2+ipath3+ipath4
 
-  XF,F2,root_dir,result=dmt.run(ipath,N,M,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],False)
+  XF,F2,root_dir,result=dmt.run(ipath,N,M,L,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],False)
   with open('{}/config.yaml'.format(root_dir),'w') as f:
     f.write(yaml.dump(config))

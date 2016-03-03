@@ -160,6 +160,6 @@ if __name__=='__main__':
   weights=[float(x) for x in config['weights']]
   rbf_var=float(config['rbf_var'])
 
-  XF,F2,root_dir,result=dmt.run(ipath,N,M,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],False)
+  XF,F2,root_dir,result=dmt.run(ipath,N,M,0,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],False)
   with open('{}/config.yaml'.format(root_dir),'w') as f:
     f.write(yaml.dump(config))

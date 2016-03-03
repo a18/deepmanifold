@@ -118,13 +118,13 @@ def match_distribution(x,P,Q,weights,max_iter=5,rbf_var=1e4):
     r_result.append(r_opt*sigma)
   return x_0,np.asarray(x_result),np.asarray(r_result)
 
-def witness_fn2(r,x,FFT,N,M,rbf_var,weight,verbose,checkrbf):
-  # K is N+M+1
+def witness_fn2(r,x,FFT,N,M,L,rbf_var,weight,verbose,checkrbf):
+  # K is N+M+L+1
   # r is K dim, indicator vector
   # x is K dim, indicator vector
   # F is K x D, latent space vectors
   # FFT is F F^T
-  K=N+M+1
+  K=N+M+L+1
   assert r.shape==(K,)
   assert x.shape==(K,)
   assert FFT.shape==(K,K)
@@ -133,7 +133,7 @@ def witness_fn2(r,x,FFT,N,M,rbf_var,weight,verbose,checkrbf):
     print('x',x.shape,x.dtype,x.min(),x.max())
 
   P=np.eye(N,K)
-  Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+1)],axis=1)
+  Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
   xpr=x+r
   xmP=xpr.reshape(1,K)-P # N x K
   xmQ=xpr.reshape(1,K)-Q # M x K
@@ -162,7 +162,7 @@ def witness_fn2(r,x,FFT,N,M,rbf_var,weight,verbose,checkrbf):
   assert grad.shape==r.shape
   return loss,grad
 
-def manifold_traversal(F,N,M,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgrad=True,checkrbf=True):
+def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgrad=True,checkrbf=True):
   # returns two arrays, xpr and r
   #   xpr is optimized x+r
   #   r is optimized r
@@ -172,6 +172,7 @@ def manifold_traversal(F,N,M,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgr
     print('F',F.shape,F.dtype,F.min(),F.max())
     print('N',N)
     print('M',M)
+    print('L',L)
     print('weights',weights)
 
   xpr_result=[]
@@ -188,14 +189,18 @@ def manifold_traversal(F,N,M,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgr
       def g(*args):
         return witness_fn2(*args)[1]
       print('Checking gradient ...')
-      err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,rbf_var,weight,False,True))
+      err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,L,rbf_var,weight,False,True))
       print('gradient error',err)
       assert err<1e-5
 
-    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,L,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
     if verbose:
-      print('r_opt',r_opt.shape,r_opt.dtype,r_opt.min(),r_opt.max(),r_opt.sum(),np.linalg.norm(r_opt))
-      print('r_opt values',r_opt[:5],'...',r_opt[N:N+5],'...',r_opt[-1])
+      #print('r_opt',r_opt.shape,r_opt.dtype)
+      print('r_opt mean P value',r_opt[:N].mean(),r_opt[:N].var())
+      print('r_opt mean Q value',r_opt[N:N+M].mean(),r_opt[N:N+M].var())
+      if L>0:
+        print('r_opt mean T value',r_opt[N+M:N+M+L].mean(),r_opt[N+M:N+M+L].var())
+      print('r_opt X value',r_opt[-1])
     xpr_result.append(x+r_opt)
     r_result.append(r_opt)
     r=r_opt
@@ -203,14 +208,16 @@ def manifold_traversal(F,N,M,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgr
 
 if __name__=='__main__':
   N=6
-  M=6
+  M=4
+  L=2
   D=20
-  P=np.random.random((N,D))+0.1
-  Q=np.random.random((M,D))-0.1
+  P=np.random.random((N,D))+0.8
+  Q=np.random.random((M,D))-0.8
+  T=np.random.random((L,D))
   X=np.random.random((D,))
-  F=np.concatenate([P,Q,X.reshape(1,D)])
-  rbf_var=1e0
-  weight=1e-3
+  F=np.concatenate([P,Q,T,X.reshape(1,D)])
+  rbf_var=1e1
+  weight=1e-2
   r=np.zeros(len(F))
   x=np.zeros(len(F))
   x[-1]=1
@@ -220,12 +227,16 @@ if __name__=='__main__':
   def g(*args):
     return witness_fn2(*args)[1]
   print('Checking gradient ...')
-  err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,rbf_var,weight,False,True))
+  err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,L,rbf_var,weight,False,True))
   print('gradient error',err)
   assert err<1e-5
-  r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,rbf_var,weight,False,True),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
-  print(r_opt[:N],r_opt[:N].var())
-  print(r_opt[N:N+M],r_opt[N:N+M].var())
-  print(r_opt[-1])
+  r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,L,rbf_var,weight,False,True),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+  print('r P',r_opt[:N],r_opt[:N].var())
+  print('r Q',r_opt[N:N+M],r_opt[N:N+M].var())
+  print('r T',r_opt[N+M:N+M+L],r_opt[N+M:N+M+L].var())
+  print('r X',r_opt[-1])
+  xhat=(x+r_opt).dot(F)
+  print('xhat',xhat)
+  assert sum(xhat<0)>sum(xhat>0)
 
   # TODO test a multimodal Q

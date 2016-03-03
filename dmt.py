@@ -62,7 +62,7 @@ flattened blobs. To recover blob k: F[i,F_slice[k]].reshape(*F_shape[k])
     index=index+numpy.prod(F_shape[k])
   return F,F_slice,F_shape
 
-def run(ipath,N,M,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid):
+def run(ipath,N,M,L,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid):
   '''This function will take a list of paths to images and run deep
 manifold traversal. First, features are extracted if needed. Next,
 the manifold traversal of each image is optimized. Lastly, the images
@@ -72,6 +72,7 @@ named result_TIMESTAMP_PREFIX.
 ipath: a list of image paths
 N: The first N images are P, the source
 M: The next M images are Q, the target
+L: The next L images are T, the data
 len(X): The remaining images are X, the images to transform.
 model: name of CNN model
 image_dims: 2-tuple of height, width
@@ -91,10 +92,11 @@ name of the results directory. result is the transformed images.
 
   P=ipath[:N]
   Q=ipath[N:N+M]
-  X=ipath[N+M:]
+  T=ipath[N+M:N+M+L]
+  X=ipath[N+M+L:]
 
-  print('{} source, {} target, {} test'.format(N,M,len(X)))
-  assert N>0 and M>0 and len(X)>0
+  print('{} source, {} target, {} data, {} test'.format(N,M,L,len(X)))
+  assert N>0 and M>0 and L>=0 and len(X)>0
 
   blob_names=['conv3_1','conv4_1','conv5_1']
 
@@ -104,27 +106,27 @@ name of the results directory. result is the transformed images.
   if len(S)>0:
     extract(S,featext,model,image_dims,device_id,blob_names)
 
-  # Form F (first N rows are P, next M rows are Q, last row is x)
+  # Form F (first N rows are P, next M rows are Q, next L are T, last row is x)
   F,F_slice,F_shape=form_F(ipath,featext,blob_names)
   print('F',F.shape)
   print(F_slice)
   print(F_shape)
-  XF=F[N+M:]
+  XF=F[N+M+L:]
 
   # Solve for multiple points on the manifold (move away from P toward Q)
   allF2=[]
   work_units,work_done,work_t0=len(XF),0,time.time()
   for x in XF:
-    F[N+M]=x
-    XPR,R=matchmmd.manifold_traversal(F[:N+M+1],N,M,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
+    F[N+M+L]=x
+    XPR,R=matchmmd.manifold_traversal(F[:N+M+L+1],N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
     print('R',R.shape,R.dtype,R.sum(axis=1))
-    allF2.append(XPR.dot(F[:N+M+1]))
+    allF2.append(XPR.dot(F[:N+M+L+1]))
     work_done=work_done+1
     rlprint('dmt {}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
   F2=numpy.asarray(allF2,dtype=numpy.float32)
   print('F2',F2.shape,F2.dtype,F2.min(),F2.max())
   # save deep manifold traversal result
-  #with open('{}_dmt.npz'.format(prefix),'wb') as f: numpy.savez(f,PF=F[:N],QF=F[N:N+M],XF=XF,F2=F2,XPR=XPR,R=R,F_shape=F_shape,weights=weights,rbf_var=rbf_var)
+  #with open('{}_dmt.npz'.format(prefix),'wb') as f: numpy.savez(f,PF=F[:N],QF=F[N:N+M],TF=F[N+M:N+M+L],XF=XF,F2=F2,XPR=XPR,R=R,F_shape=F_shape,weights=weights,rbf_var=rbf_var)
 
   F2=F2.reshape(F2.shape[0]*F2.shape[1],-1)
   dataset_F=numpy.concatenate([XF,F2],axis=0)
