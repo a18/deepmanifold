@@ -150,13 +150,18 @@ name of the results directory. result is the transformed images.
   print(F_slice)
   print(F_shape)
   XF=F[N+M+L:]
+  FFT1=F[:N+M+L+1].dot(F[:N+M+L+1].T)
 
   # Solve for multiple points on the manifold (move away from P toward Q)
   allF2=[]
   work_units,work_done,work_t0=len(XF),0,time.time()
   for x in XF:
     F[N+M+L]=x
-    XPR,R=matchmmd.manifold_traversal(F[:N+M+L+1],N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
+    nv=F[:N+M+L].dot(x)
+    FFT1[:-1,-1]=nv
+    FFT1[-1,:-1]=nv
+    FFT1[-1,-1]=x.dot(x)
+    XPR,R=matchmmd.manifold_traversal2(FFT1,N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
     print('R',R.shape,R.dtype,R.sum(axis=1))
     if zscore:
       allF2.append((XPR.dot(F[:N+M+L+1]))*sigma+loc)

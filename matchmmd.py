@@ -174,7 +174,13 @@ def zscore_F(F):
   sigma[sigma<1e-10]=1
   return (F-loc)/sigma,loc,sigma
 
-def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True):
+def form_FFT(F,FFT_NML,x):
+  assert len(x)==len(F)+1
+  Fx=F.dot(x)
+  return np.bmat([[FFT_NML,Fx[:-1].reshape(len(F)-1,1)],[Fx[:-1].reshape(1,len(F)-1),Fx[-1].reshape(1,1)]])
+  return np.bmat([[FFT_NML,Fx.reshape(len(F),1)],[Fx[:-1].reshape(1,len(F)-1),Fx[-1].reshape(1,1)]])
+
+def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True):
   # returns two arrays, xpr and r
   #   xpr is optimized x+r
   #   r is optimized r
@@ -187,12 +193,12 @@ def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,chec
     print('L',L)
     print('weights',weights)
 
+  #FFT=F.dot(F.T) # K x K
   xpr_result=[]
   r_result=[]
-  r=np.zeros(len(F))
-  x=np.zeros(len(F))
+  r=np.zeros(len(FFT))
+  x=np.zeros(len(FFT))
   x[-1]=1
-  FFT=F.dot(F.T) # K x K
   K=N+M+L+1
   P=np.eye(N,K)
   Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
@@ -239,10 +245,15 @@ if __name__=='__main__':
   rbf_var=0.5e2
   weight=0.1
   # aux vars
-  r=np.zeros(len(F))
-  x=np.zeros(len(F))
+  FFT=F[:N+M+L+1].dot(F[:N+M+L+1].T)
+  x=F[-1]
+  nv=F[:N+M+L].dot(x)
+  FFT[:-1,-1]=nv
+  FFT[-1,:-1]=nv
+  FFT[-1,-1]=x.dot(x)
+  r=np.zeros(len(FFT))
+  x=np.zeros(len(FFT))
   x[-1]=1
-  FFT=F.dot(F.T) # K x K
   K=N+M+L+1
   P=np.eye(N,K)
   Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
