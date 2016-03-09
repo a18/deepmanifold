@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import scipy.optimize
 import Queue
+import time
 import threading
 import minimize
 import threadparallel
@@ -118,7 +119,7 @@ def match_distribution(x,P,Q,weights,max_iter=5,rbf_var=1e4):
     r_result.append(r_opt*sigma)
   return x_0,np.asarray(x_result),np.asarray(r_result)
 
-def witness_fn2(r,x,FFT,N,M,L,rbf_var,weight,verbose,checkrbf):
+def witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf):
   # K is N+M+L+1
   # r is K dim, indicator vector
   # x is K dim, indicator vector
@@ -134,28 +135,43 @@ def witness_fn2(r,x,FFT,N,M,L,rbf_var,weight,verbose,checkrbf):
 
   P=np.eye(N,K)
   Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
+
   xpr=x+r
-  xmP=xpr.reshape(1,K)-P # N x K
-  xmQ=xpr.reshape(1,K)-Q # M x K
-  AP=xmP.dot(FFT)
-  AQ=xmQ.dot(FFT)
   Z=(-1.0/(2*rbf_var))
-  eP=Z*(AP.dot(xmP.T)).sum(axis=1)
-  eQ=Z*(AQ.dot(xmQ.T)).sum(axis=1)
+  FFTxpr=FFT.dot(xpr.T)
+  xprFFTxpr=xpr.dot(FFTxpr)
+  eP=Z*(xprFFTxpr+CP-2.0*xpr.dot(BP))
+  eQ=Z*(xprFFTxpr+CQ-2.0*xpr.dot(BQ))
+
+  #xpr=x+r
+  #xmP=xpr.reshape(1,K)-P # N x K
+  #xmQ=xpr.reshape(1,K)-Q # M x K
+  #AP=xmP.dot(FFT)
+  #AQ=xmQ.dot(FFT)
+  #Z=(-1.0/(2*rbf_var))
+  #eP=Z*(AP.dot(xmP.T)).sum(axis=1)
+  #eQ=Z*(AQ.dot(xmQ.T)).sum(axis=1)
+  KP=np.exp(eP)
+  KQ=np.exp(eQ)
+  B=FFT.dot(r)
+
+  loss=(1.0/N)*KP.sum()-(1.0/M)*KQ.sum()+weight*(r.dot(B))
+  grad=(1.0/N)*2.0*Z*(KP.reshape(N,1)*(FFTxpr-BP.T)).sum(axis=0)-(1.0/M)*2.0*Z*(KQ.reshape(M,1)*(FFTxpr-BQ.T)).sum(axis=0)+2*weight*B
+
+  # reference implementation
+  #eP=np.array([Z*((x+r-P[i]).dot(FFT).dot((x+r-P[i]).T)) for i in range(N)])
+  #eQ=np.array([Z*((x+r-Q[i]).dot(FFT).dot((x+r-Q[i]).T)) for i in range(M)])
+  #KP=np.exp(eP)
+  #KQ=np.exp(eQ)
+  #loss=(1.0/N)*KP.sum()-(1.0/M)*KQ.sum()+weight*r.dot(FFT).dot(r)
+  #grad=(1.0/N)*(KP.reshape(N,1)*2.0*Z*np.array([FFT.dot((x+r-P[i]).T) for i in range(N)])).sum(axis=0)-(1.0/M)*(KQ.reshape(M,1)*2.0*Z*np.array([FFT.dot((x+r-Q[i]).T) for i in range(M)])).sum(axis=0)+2*weight*FFT.dot(r)
+
   if checkrbf:
     print('rbf',eP.var(),eQ.var())
     if eP.mean()<-10 or eQ.mean()<-10:
       print('WARNING: rbf_var is too small (eP.mean()={}, eQ.mean={})'.format(eP.mean(),eQ.mean()))
-  KP=np.exp(eP)
-  KQ=np.exp(eQ)
-  if checkrbf:
     print('KP',KP[:5],KP.mean(),KP.var())
     print('KQ',KQ[:5],KQ.mean(),KQ.var())
-  B=FFT.dot(r)
-
-  loss=(1.0/N)*KP.sum()-(1.0/M)*KQ.sum()+weight*(r.dot(B))
-  grad=(1.0/N)*Z*(KP.reshape(N,1)*(AP.T.sum(axis=1).reshape(1,K)+N*AP)).sum(axis=0)-(1.0/M)*Z*(KQ.reshape(M,1)*(AQ.T.sum(axis=1).reshape(1,K)+M*AQ)).sum(axis=0)+2*weight*B
-
   if verbose:
     print('loss',loss)
     print('grad',grad.shape,grad.dtype,grad.min(),grad.max())
@@ -189,19 +205,29 @@ def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=True,check
   x=np.zeros(len(F))
   x[-1]=1
   FFT=F.dot(F.T) # K x K
+  K=N+M+L+1
+  P=np.eye(N,K)
+  Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
+  BP=FFT.dot(P.T) # K x N
+  BQ=FFT.dot(Q.T) # K x M
+  CP=np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
+  CQ=np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
   for weight in weights:
 
     if checkgrad:
       def f(*args):
-        return witness_fn2(*args)[0]
+        return witness_fn3(*args)[0]
       def g(*args):
-        return witness_fn2(*args)[1]
+        return witness_fn3(*args)[1]
       print('Checking gradient ...')
-      err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,L,rbf_var,weight,False,True))
+      #err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,L,rbf_var,weight,False,True))
+      err=scipy.optimize.check_grad(f,g,r,*(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True))
       print('gradient error',err)
       assert err<1e-5
 
-    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,L,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+    t0=time.time()
+    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+    t1=time.time()
     if verbose:
       #print('r_opt',r_opt.shape,r_opt.dtype)
       print('r_opt mean P value',r_opt[:N].mean(),r_opt[:N].var())
@@ -209,12 +235,42 @@ def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=True,check
       if L>0:
         print('r_opt mean T value',r_opt[N+M:N+M+L].mean(),r_opt[N+M:N+M+L].var())
       print('r_opt X value',r_opt[-1])
+      print('Optimized in {} minutes.'.format((t1-t0)/60.0))
     xpr_result.append(x+r_opt)
     r_result.append(r_opt)
     r=r_opt
   return np.asarray(xpr_result),np.asarray(r_result)
 
 if __name__=='__main__':
+  # test settings
+  N=2
+  M=2
+  L=0
+  D=2
+  F=np.arange(1,11).reshape(5,2)
+  rbf_var=0.5e2
+  weight=0.1
+  # aux vars
+  r=np.zeros(len(F))
+  x=np.zeros(len(F))
+  x[-1]=1
+  FFT=F.dot(F.T) # K x K
+  K=N+M+L+1
+  P=np.eye(N,K)
+  Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
+  BP=FFT.dot(P.T) # K x N
+  BQ=FFT.dot(Q.T) # K x M
+  CP=np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
+  CQ=np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
+  loss,grad=witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True)
+  # solution
+  # eP = -1.28, -0.72
+  # eQ = -0.32, -0.08
+  # loss = -0.44223791352358049
+  # grad = -0.01181949294952045, -0.02757881688221442, -0.04333814081490828, -0.059097464747602246, -0.074856788680296
+  assert np.allclose(loss,-0.44223791352358049)
+  assert np.allclose(grad,[-0.01181949294952045, -0.02757881688221442, -0.04333814081490828, -0.059097464747602246, -0.074856788680296])
+
   N=6
   M=4
   L=2
@@ -230,15 +286,22 @@ if __name__=='__main__':
   x=np.zeros(len(F))
   x[-1]=1
   FFT=F.dot(F.T) # K x K
+  K=N+M+L+1
+  P=np.eye(N,K)
+  Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
+  BP=FFT.dot(P.T) # K x N
+  BQ=FFT.dot(Q.T) # K x M
+  CP=np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
+  CQ=np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
   def f(*args):
-    return witness_fn2(*args)[0]
+    return witness_fn3(*args)[0]
   def g(*args):
-    return witness_fn2(*args)[1]
+    return witness_fn3(*args)[1]
   print('Checking gradient ...')
-  err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,L,rbf_var,weight,False,True))
+  err=scipy.optimize.check_grad(f,g,r,*(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True))
   print('gradient error',err)
   assert err<1e-5
-  r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn2,(x,FFT,N,M,L,rbf_var,weight,False,True),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+  r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
   print('r P',r_opt[:N],r_opt[:N].var())
   print('r Q',r_opt[N:N+M],r_opt[N:N+M].var())
   print('r T',r_opt[N+M:N+M+L],r_opt[N+M:N+M+L].var())

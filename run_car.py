@@ -70,7 +70,7 @@ if __name__=='__main__':
     M=len(ipath2)
     ipath=ipath1+ipath2+ipath3
     print(ipath)
-    XF,F2,root_dir,result=dmt.run(ipath,N,M,0,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix+'_'+test_car[index],config['num_iter'],False)
+    XF,F2,root_dir,result=dmt.run(ipath,N,M,0,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix+'_'+test_car[index],config['num_iter'],False,False)
     A=skimage.io.imread(root_dir+'/car_{}_mesh{}-original.png'.format(test_car[index],config['source'][len(config['source'])//2]))/255.0
     B=skimage.io.imread('images/car24r/car_{}_mesh{}.png'.format(test_car[index],config['target'][len(config['target'])//2]))/255.0
     B=caffe.io.resize_image(B,A.shape)

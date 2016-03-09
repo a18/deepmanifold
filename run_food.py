@@ -72,6 +72,6 @@ if __name__=='__main__':
   L=len(ipath3)
   ipath=ipath1+ipath2+ipath3+ipath4
 
-  XF,F2,root_dir,result=dmt.run(ipath,N,M,L,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],False)
+  XF,F2,root_dir,result=dmt.run(ipath,N,M,L,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],False,False)
   with open('{}/config.yaml'.format(root_dir),'w') as f:
     f.write(yaml.dump(config))

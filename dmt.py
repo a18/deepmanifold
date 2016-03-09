@@ -62,7 +62,7 @@ flattened blobs. To recover blob k: F[i,F_slice[k]].reshape(*F_shape[k])
     index=index+numpy.prod(F_shape[k])
   return F,F_slice,F_shape
 
-def run(ipath,N,M,L,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid):
+def run(ipath,N,M,L,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid,zscore):
   '''This function will take a list of paths to images and run deep
 manifold traversal. First, features are extracted if needed. Next,
 the manifold traversal of each image is optimized. Lastly, the images
@@ -82,6 +82,7 @@ rbf_var: variance for the rbf kernel
 prefix: used in the name of the results directory
 max_iter: number of iterations for the reconstruction
 hybrid: True if you want to the use the layer regularizer
+zscore: True if you want to zscore F
 
 Returns XF, F2, root_dir and result. XF is the feature matrix of the
 original images. F2 is the feature matrix of the transformed images
@@ -106,9 +107,45 @@ name of the results directory. result is the transformed images.
   if len(S)>0:
     extract(S,featext,model,image_dims,device_id,blob_names)
 
+  # triple traversal
+  if False:
+    F,F_slice,F_shape=form_F(ipath,featext,blob_names)
+    XF=F[N+M+L:]
+    F2=numpy.zeros((len(XF)*len(weights),F.shape[1]))
+    work_units,work_done,work_t0=len(blob_names)*len(XF),0,time.time()
+    for k in blob_names:
+      G=F[:,F_slice[k]]
+      G,loc,sigma=matchmmd.zscore_F(G)
+      XG=G[N+M+L:]
+
+      allG2=[]
+      for x in XG:
+        G[N+M+L]=x
+        XPR,R=matchmmd.manifold_traversal(G[:N+M+L+1],N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
+        print('R',R.shape,R.dtype,R.sum(axis=1))
+        allG2.append((XPR.dot(G[:N+M+L+1]))*sigma+loc)
+        work_done=work_done+1
+        rlprint('dmt {}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
+      G2=numpy.asarray(allG2,dtype=numpy.float32)
+      print('G2',G2.shape,G2.dtype,G2.min(),G2.max())
+      G2=G2.reshape(G2.shape[0]*G2.shape[1],-1)
+      F2[:,F_slice[k]]=G2
+
+    dataset_F=numpy.concatenate([XF,F2],axis=0)
+    data_indices=range(len(X),len(X)+len(F2))
+    test_indices=list(numpy.repeat(range(len(X)),len(weights)))
+ 
+    if hybrid:
+      root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=['conv1_1','conv2_1'],hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix)
+    else:
+      root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix)
+
+    return XF,F2,root_dir,result
+
   # Form F (first N rows are P, next M rows are Q, next L are T, last row is x)
   F,F_slice,F_shape=form_F(ipath,featext,blob_names)
-  F,loc,sigma=matchmmd.zscore_F(F)
+  if zscore:
+    F,loc,sigma=matchmmd.zscore_F(F)
   print('F',F.shape,F.dtype)
   print(F_slice)
   print(F_shape)
@@ -121,9 +158,14 @@ name of the results directory. result is the transformed images.
     F[N+M+L]=x
     XPR,R=matchmmd.manifold_traversal(F[:N+M+L+1],N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
     print('R',R.shape,R.dtype,R.sum(axis=1))
-    allF2.append((XPR.dot(F[:N+M+L+1]))*sigma+loc)
+    if zscore:
+      allF2.append((XPR.dot(F[:N+M+L+1]))*sigma+loc)
+    else:
+      allF2.append(XPR.dot(F[:N+M+L+1]))
     work_done=work_done+1
     rlprint('dmt {}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
+  if zscore:
+    XF=XF*sigma+loc
   F2=numpy.asarray(allF2,dtype=numpy.float32)
   print('F2',F2.shape,F2.dtype,F2.min(),F2.max())
   # save deep manifold traversal result
