@@ -46,9 +46,11 @@ blob_names: names of blobs to read, in order
 Returns F, F_slice and F_shape. Each row of F is a concatenation of the
 flattened blobs. To recover blob k: F[i,F_slice[k]].reshape(*F_shape[k])
 '''
+  rlprint=ratelimit(interval=60)(print)
   F_shape={}
   F_slice={}
   K=len(ipath)
+  work_units,work_done,work_t0=len(ipath),0,time.time()
   for i,x in enumerate(ipath):
     data=numpy.load(os.path.splitext(x)[0]+featext)
     if i==0:
@@ -57,6 +59,8 @@ flattened blobs. To recover blob k: F[i,F_slice[k]].reshape(*F_shape[k])
       D=sum([numpy.prod(F_shape[k]) for k in blob_names])
       F=numpy.zeros((K,D),dtype=data[k].dtype)
     F[i]=numpy.concatenate([data[k].ravel() for k in blob_names])
+    work_done=work_done+1
+    rlprint('dmt {}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
   index=0
   for k in blob_names:
     F_slice[k]=slice(index,index+numpy.prod(F_shape[k]))
@@ -151,6 +155,7 @@ name of the results directory. result is the transformed images.
   print(F_slice)
   print(F_shape)
   XF=F[N+M+L:]
+  print('Computing FFT1 ...')
   FFT1=F[:N+M+L+1].dot(F[:N+M+L+1].T)
 
   # Solve for multiple points on the manifold (move away from P toward Q)
