@@ -129,9 +129,6 @@ def witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf):
   assert r.shape==(K,)
   assert x.shape==(K,)
   assert FFT.shape==(K,K)
-  if verbose:
-    print('r',r.shape,r.dtype,r.min(),r.max())
-    print('x',x.shape,x.dtype,x.min(),x.max())
 
   P=np.eye(N,K)
   Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
@@ -143,14 +140,6 @@ def witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf):
   eP=Z*(xprFFTxpr+CP-2.0*xpr.dot(BP))
   eQ=Z*(xprFFTxpr+CQ-2.0*xpr.dot(BQ))
 
-  #xpr=x+r
-  #xmP=xpr.reshape(1,K)-P # N x K
-  #xmQ=xpr.reshape(1,K)-Q # M x K
-  #AP=xmP.dot(FFT)
-  #AQ=xmQ.dot(FFT)
-  #Z=(-1.0/(2*rbf_var))
-  #eP=Z*(AP.dot(xmP.T)).sum(axis=1)
-  #eQ=Z*(AQ.dot(xmQ.T)).sum(axis=1)
   KP=np.exp(eP)
   KQ=np.exp(eQ)
   B=FFT.dot(r)
@@ -167,7 +156,6 @@ def witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf):
   #grad=(1.0/N)*(KP.reshape(N,1)*2.0*Z*np.array([FFT.dot((x+r-P[i]).T) for i in range(N)])).sum(axis=0)-(1.0/M)*(KQ.reshape(M,1)*2.0*Z*np.array([FFT.dot((x+r-Q[i]).T) for i in range(M)])).sum(axis=0)+2*weight*FFT.dot(r)
 
   if checkrbf:
-    print('rbf',eP.var(),eQ.var())
     if eP.mean()<-10 or eQ.mean()<-10:
       print('WARNING: rbf_var is too small (eP.mean()={}, eQ.mean={})'.format(eP.mean(),eQ.mean()))
     print('KP',KP[:5],KP.mean(),KP.var())
@@ -186,7 +174,7 @@ def zscore_F(F):
   sigma[sigma<1e-10]=1
   return (F-loc)/sigma,loc,sigma
 
-def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=True,checkgrad=True,checkrbf=True):
+def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True):
   # returns two arrays, xpr and r
   #   xpr is optimized x+r
   #   r is optimized r
