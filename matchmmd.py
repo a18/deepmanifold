@@ -174,12 +174,6 @@ def zscore_F(F):
   sigma[sigma<1e-10]=1
   return (F-loc)/sigma,loc,sigma
 
-def form_FFT(F,FFT_NML,x):
-  assert len(x)==len(F)+1
-  Fx=F.dot(x)
-  return np.bmat([[FFT_NML,Fx[:-1].reshape(len(F)-1,1)],[Fx[:-1].reshape(1,len(F)-1),Fx[-1].reshape(1,1)]])
-  return np.bmat([[FFT_NML,Fx.reshape(len(F),1)],[Fx[:-1].reshape(1,len(F)-1),Fx[-1].reshape(1,1)]])
-
 def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True):
   # returns two arrays, xpr and r
   #   xpr is optimized x+r
@@ -187,7 +181,7 @@ def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,c
   # multiply by F to get latent space vector
   if verbose:
     print('manifold_traversal()')
-    print('F',F.shape,F.dtype,F.min(),F.max())
+    print('FFT',FFT.shape,FFT.dtype,FFT.min(),FFT.max())
     print('N',N)
     print('M',M)
     print('L',L)
