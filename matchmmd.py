@@ -196,10 +196,10 @@ def manifold_traversal(F,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,chec
   K=N+M+L+1
   P=np.eye(N,K)
   Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
-  BP=FFT.dot(P.T) # K x N
-  BQ=FFT.dot(Q.T) # K x M
-  CP=np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
-  CQ=np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
+  BP=FFT[:,:N] # FFT.dot(P.T) # K x N
+  BQ=FFT[:,N:N+M] # FFT.dot(Q.T) # K x M
+  CP=np.array([FFT[i,i] for i in range(N)]) # np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
+  CQ=np.array([FFT[N+i,N+i] for i in range(M)]) # np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
   for weight in weights:
 
     if checkgrad:
@@ -246,18 +246,18 @@ if __name__=='__main__':
   K=N+M+L+1
   P=np.eye(N,K)
   Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
-  BP=FFT.dot(P.T) # K x N
-  BQ=FFT.dot(Q.T) # K x M
-  CP=np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
-  CQ=np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
+  BP=FFT[:,:N] # FFT.dot(P.T) # K x N
+  BQ=FFT[:,N:N+M] # FFT.dot(Q.T) # K x M
+  CP=np.array([FFT[i,i] for i in range(N)]) # np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
+  CQ=np.array([FFT[N+i,N+i] for i in range(M)]) # np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
   loss,grad=witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True)
   # solution
   # eP = -1.28, -0.72
   # eQ = -0.32, -0.08
   # loss = -0.44223791352358049
   # grad = -0.01181949294952045, -0.02757881688221442, -0.04333814081490828, -0.059097464747602246, -0.074856788680296
-  assert np.allclose(loss,-0.44223791352358049)
-  assert np.allclose(grad,[-0.01181949294952045, -0.02757881688221442, -0.04333814081490828, -0.059097464747602246, -0.074856788680296])
+  assert np.allclose(loss,-0.44223791352358049),loss
+  assert np.allclose(grad,[-0.01181949294952045, -0.02757881688221442, -0.04333814081490828, -0.059097464747602246, -0.074856788680296]),grad
 
   N=6
   M=4
@@ -277,10 +277,10 @@ if __name__=='__main__':
   K=N+M+L+1
   P=np.eye(N,K)
   Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
-  BP=FFT.dot(P.T) # K x N
-  BQ=FFT.dot(Q.T) # K x M
-  CP=np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
-  CQ=np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
+  BP=FFT[:,:N] # FFT.dot(P.T) # K x N
+  BQ=FFT[:,N:N+M] # FFT.dot(Q.T) # K x M
+  CP=np.array([FFT[i,i] for i in range(N)]) # np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
+  CQ=np.array([FFT[N+i,N+i] for i in range(M)]) # np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
   def f(*args):
     return witness_fn3(*args)[0]
   def g(*args):
