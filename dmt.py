@@ -48,14 +48,15 @@ flattened blobs. To recover blob k: F[i,F_slice[k]].reshape(*F_shape[k])
 '''
   F_shape={}
   F_slice={}
-  F=[]
+  K=len(ipath)
   for i,x in enumerate(ipath):
     data=numpy.load(os.path.splitext(x)[0]+featext)
     if i==0:
       for k in blob_names:
         F_shape[k]=data[k].shape
-    F.append(numpy.concatenate([data[k].ravel() for k in blob_names]))
-  F=numpy.array(F)
+      D=sum([numpy.prod(F_shape[k]) for k in blob_names])
+      F=numpy.zeros((K,D),dtype=data[k].dtype)
+    F[i]=numpy.concatenate([data[k].ravel() for k in blob_names])
   index=0
   for k in blob_names:
     F_slice[k]=slice(index,index+numpy.prod(F_shape[k]))
@@ -161,7 +162,7 @@ name of the results directory. result is the transformed images.
     FFT1[:-1,-1]=nv
     FFT1[-1,:-1]=nv
     FFT1[-1,-1]=x.dot(x)
-    XPR,R=matchmmd.manifold_traversal2(FFT1,N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True)
+    XPR,R=matchmmd.manifold_traversal2(FFT1,N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True,verbose=True)
     print('R',R.shape,R.dtype,R.sum(axis=1))
     if zscore:
       allF2.append((XPR.dot(F[:N+M+L+1]))*sigma+loc)
