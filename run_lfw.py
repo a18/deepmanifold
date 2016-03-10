@@ -29,7 +29,7 @@ import pipes
 import caffe.io
 import matchmmd
 import dmt
-from gen_deepart import read_lfw_attributes,attr_pairs
+from gen_deepart import read_lfw_attributes,attr_pairs,attr_positive,attr_negative,attr_read_named
 from gen_deepart import minibatch
 from gen_deepart import setup_classifier
 from gen_deepart import deepart_reconstruct
@@ -64,14 +64,29 @@ if __name__=='__main__':
     target_indices=indices[config['source_k']:config['source_k']+config['target_k']]
   else:
     _,lfwattrname,lfwattr=read_lfw_attributes()
+
+    # S is gender filter
+    attr=lfwattrname.index('Male')
+    male=attr_positive(lfwattr,attr)
+    female=attr_negative(lfwattr,attr)
+    print('male/female',len(male),len(female))
+    if config['gender']=='Male': S=male
+    elif config['gender']=='Female': S=female
+    else: S=male+female
+
     attr=lfwattrname.index(config['attribute'])
     if config['reversed']:
-      source_indices,target_indices=attr_pairs(lfwattr,attr,config['source_k'],config['target_k'])
+      source_indices,target_indices=attr_pairs(lfwattr,attr,config['source_k'],config['target_k'],S=S)
     else:
-      target_indices,source_indices=attr_pairs(lfwattr,attr,config['target_k'],config['source_k'])
+      target_indices,source_indices=attr_pairs(lfwattr,attr,config['target_k'],config['source_k'],S=S)
+
+    #source_indices=attr_read_named(lfwattr,lfwattrname,config['source_attribute'],S)[:config['source_k']]
+    #target_indices=attr_read_named(lfwattr,lfwattrname,config['target_attribute'],S)[:config['target_k']]
+    print('source',filelist[source_indices[0]])
+    print('target',filelist[target_indices[0]])
 
   # test_set is random images not in the P or Q
-  indices=sorted(list(set(range(len(filelist)))-set(source_indices)-set(target_indices)))
+  indices=sorted(list(set(S)-set(source_indices)-set(target_indices)))
   random.seed(123)
   random.shuffle(indices)
   test_indices=indices[:config['test_k']]

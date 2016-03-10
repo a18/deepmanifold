@@ -913,14 +913,44 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
 
   return root_dir,result
 
-def attr_pairs(attr,index,k1,k2):
-  # returns top-k strongest and weakest image indices
+def attr_positive(attr,index):
+  # returns positive attribute indices
   i=list(range(len(attr)))
+  i=[j for j in i if float(attr[j][index])>0]
+  i.sort(key=lambda x: -float(attr[x][index]))
+  return i
+
+def attr_negative(attr,index):
+  # returns negative attribute indices
+  i=list(range(len(attr)))
+  i=[j for j in i if float(attr[j][index])<0]
+  i.sort(key=lambda x: float(attr[x][index]))
+  return i
+
+def attr_pairs(attr,index,k1,k2,S=None):
+  # returns top-k strongest and weakest image indices
+  if S==None:
+    i=list(range(len(attr)))
+  else:
+    i=list(S)
   if index<0:
     i.sort(key=lambda x: float(attr[x][-index]))
   else:
     i.sort(key=lambda x: -float(attr[x][index]))
   return i[:k1],(i[-k2:] if k2>0 else [])
+
+def attr_read_named(lfwattr,lfwattrname,name,S):
+  if name.startswith('not '):
+    index=lfwattrname.index(name[4:])
+    if S==None: i=list(range(len(lfwattr)))
+    else: i=list(S)
+    i.sort(key=lambda x: float(lfwattr[x][index]))
+  else:
+    index=lfwattrname.index(name)
+    if S==None: i=list(range(len(lfwattr)))
+    else: i=list(S)
+    i.sort(key=lambda x: -float(lfwattr[x][index]))
+  return i
 
 def deepart_match(prefix='data',desc='match',blob_names=['conv3_1','conv4_1','conv5_1'],weights=[1e-5,7.5e-6,5e-6],attr=10,source_k=2000,target_k=2000,test_indices=[0,1,2,3,4],image_dims=(224,224),device_id=0):
   t0=time.time()

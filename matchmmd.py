@@ -110,9 +110,9 @@ def match_distribution(x,P,Q,weights,max_iter=5,rbf_var=1e4):
         loss=sum(x[0] for x in result)
         grad=sum(x[1] for x in result)
         return loss,grad
-      r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn_parallel,(x,P,Q,rbf_var,weight,'rbf'),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+      r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn_parallel,(x,P,Q,rbf_var,weight,'rbf'),maxnumlinesearch=25,maxnumfuneval=None,red=1.0,verbose=True)
     else:
-      r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn,(x,P,Q,rbf_var,weight),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+      r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn,(x,P,Q,rbf_var,weight),maxnumlinesearch=25,maxnumfuneval=None,red=1.0,verbose=True)
     print('r_opt',r_opt.shape,r_opt.dtype,r_opt.min(),r_opt.max(),np.linalg.norm(r_opt))
     print(r_opt[:10])
     x_result.append((x+r_opt)*sigma+loc)
@@ -214,7 +214,7 @@ def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,c
       assert err<1e-5
 
     t0=time.time()
-    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=25,maxnumfuneval=None,red=1.0,verbose=True)
     t1=time.time()
     if verbose:
       #print('r_opt',r_opt.shape,r_opt.dtype)
@@ -294,7 +294,7 @@ if __name__=='__main__':
   err=scipy.optimize.check_grad(f,g,r,*(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True))
   print('gradient error',err)
   assert err<1e-5
-  r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True),maxnumlinesearch=50,maxnumfuneval=None,red=1.0,verbose=True)
+  r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True),maxnumlinesearch=25,maxnumfuneval=None,red=1.0,verbose=True)
   print('r P',r_opt[:N],r_opt[:N].var())
   print('r Q',r_opt[N:N+M],r_opt[N:N+M].var())
   print('r T',r_opt[N+M:N+M+L],r_opt[N+M:N+M+L].var())

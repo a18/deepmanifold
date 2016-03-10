@@ -157,6 +157,7 @@ name of the results directory. result is the transformed images.
   XF=F[N+M+L:]
   print('Computing FFT1 ...')
   FFT1=F[:N+M+L+1].dot(F[:N+M+L+1].T)
+  #print('FFT1 fro',numpy.linalg.norm(FFT1,'fro'))
 
   # Solve for multiple points on the manifold (move away from P toward Q)
   allF2=[]
