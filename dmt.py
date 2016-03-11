@@ -8,8 +8,17 @@ import numpy
 import time
 import os
 import os.path
+import sys
+skimage_io_import_bug_workaround=sys.argv
+try:
+  sys.argv=sys.argv[:1]
+  import skimage.io
+finally:
+  sys.argv=skimage_io_import_bug_workaround
+  del skimage_io_import_bug_workaround
 
 import matchmmd
+import imageutils
 from gen_deepart import minibatch
 from gen_deepart import setup_classifier
 from gen_deepart import deepart_reconstruct
@@ -168,7 +177,7 @@ name of the results directory. result is the transformed images.
     FFT1[:-1,-1]=nv
     FFT1[-1,:-1]=nv
     FFT1[-1,-1]=x.dot(x)
-    XPR,R=matchmmd.manifold_traversal2(FFT1,N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True,verbose=True)
+    XPR,R=matchmmd.manifold_traversal2(FFT1,N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True,verbose=False)
     print('R',R.shape,R.dtype,R.sum(axis=1))
     if zscore:
       allF2.append((XPR.dot(F[:N+M+L+1]))*sigma+loc)
@@ -192,5 +201,10 @@ name of the results directory. result is the transformed images.
     root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=['conv1_1','conv2_1'],hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix)
   else:
     root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix)
+  result=numpy.array(result)
+  print('result',result.shape,result.dtype)
+  result=result.reshape(len(XF),len(weights),*result.shape[1:])
+  M=imageutils.montage(result.transpose((1,0)+tuple(range(2,result.ndim)))) # stack lambdas vertically
+  skimage.io.imsave('{}/montage_all.png'.format(root_dir),M)
 
   return XF,F2,root_dir,result
