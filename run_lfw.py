@@ -62,6 +62,23 @@ if __name__=='__main__':
     random.shuffle(indices)
     source_indices=indices[:config['source_k']]
     target_indices=indices[config['source_k']:config['source_k']+config['target_k']]
+  elif config['identity']:
+    _,lfwattrname,lfwattr=read_lfw_attributes()
+
+    # S is gender filter
+    attr=lfwattrname.index('Male')
+    male=attr_positive(lfwattr,attr)
+    female=attr_negative(lfwattr,attr)
+    print('male/female',len(male),len(female))
+    if config['gender']=='Male': S=male
+    elif config['gender']=='Female': S=female
+    else: S=male+female
+
+    target_indices=[i for i in range(len(filelist)) if lfwattr[i][0]=='George W Bush']
+    source_indices=sorted(list(set(S)-set(target_indices)))
+    random.seed(123)
+    random.shuffle(source_indices)
+    source_indices=source_indices[:len(target_indices)]
   else:
     _,lfwattrname,lfwattr=read_lfw_attributes()
 
@@ -91,6 +108,8 @@ if __name__=='__main__':
   random.shuffle(indices)
   test_indices=indices[:config['test_k']]
   if 0 not in test_indices: test_indices[0]=0 # The Aaron Eckhart Project
+  if config['identity']:
+    if 12200 not in test_indices: test_indices[0]=12200 # Tom Hanks
 
   if config['colorize']:
     ipath1=[filelist[i].replace('lfw','lfw_gray') for i in source_indices]
