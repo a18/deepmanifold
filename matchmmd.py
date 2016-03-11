@@ -172,7 +172,9 @@ def zscore_F(F):
   sigma=F.std(axis=0)
   loc=F.mean(axis=0)
   sigma[sigma<1e-10]=1
-  return (F-loc)/sigma,loc,sigma
+  F -= loc
+  F /= sigma.reshape(1,sigma.shape[0])
+  return loc,sigma
 
 def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True):
   # returns two arrays, xpr and r

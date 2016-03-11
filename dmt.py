@@ -150,7 +150,7 @@ name of the results directory. result is the transformed images.
   # Form F (first N rows are P, next M rows are Q, next L are T, last row is x)
   F,F_slice,F_shape=form_F(ipath,featext,blob_names)
   if zscore:
-    F,loc,sigma=matchmmd.zscore_F(F)
+    loc,sigma=matchmmd.zscore_F(F)
   print('F',F.shape,F.dtype)
   print(F_slice)
   print(F_shape)
