@@ -76,7 +76,7 @@ flattened blobs. To recover blob k: F[i,F_slice[k]].reshape(*F_shape[k])
     index=index+numpy.prod(F_shape[k])
   return F,F_slice,F_shape
 
-def run(ipath,N,M,L,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid,zscore):
+def run(ipath,N,M,L,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid,zscore,maxnumlinesearch=25):
   '''This function will take a list of paths to images and run deep
 manifold traversal. First, features are extracted if needed. Next,
 the manifold traversal of each image is optimized. Lastly, the images
@@ -177,7 +177,7 @@ name of the results directory. result is the transformed images.
     FFT1[:-1,-1]=nv
     FFT1[-1,:-1]=nv
     FFT1[-1,-1]=x.dot(x)
-    XPR,R=matchmmd.manifold_traversal2(FFT1,N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True,verbose=False)
+    XPR,R=matchmmd.manifold_traversal2(FFT1,N,M,L,weights,rbf_var=rbf_var,checkgrad=False,checkrbf=True,verbose=False,maxnumlinesearch=maxnumlinesearch)
     print('R',R.shape,R.dtype,R.sum(axis=1))
     if zscore:
       allF2.append((XPR.dot(F[:N+M+L+1]))*sigma+loc)
