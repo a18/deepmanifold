@@ -167,13 +167,18 @@ def witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf):
   return loss,grad
 
 def zscore_F(F):
+  # in place, zero copy
   # F is K x D
-  print('F',F.shape,F.dtype,F.min(),F.max(),F.sum())
-  sigma=F.std(axis=0)
+  print('F',F.shape,F.dtype,F.min(),F.max())
+  assert F.ndim==2
   loc=F.mean(axis=0)
+  sigma=np.empty_like(loc)
+  for i in range(0,F.shape[1],10000):
+    j=i+10000
+    sigma[i:j]=F[:,i:j].std(axis=0)
   sigma[sigma<1e-10]=1
-  F -= loc
-  F /= sigma.reshape(1,sigma.shape[0])
+  F-=loc
+  F/=sigma.reshape(1,-1)
   return loc,sigma
 
 def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True):
