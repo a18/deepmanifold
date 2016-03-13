@@ -15,4 +15,4 @@ if __name__=='__main__':
 
   if not os.path.exists(args[0]):
     subprocess.check_call(['rsync','-avzP','mrmaster:/isis2b/git/deepmanifold/{}'.format(args[0]),'.'])
-  dmt.reconstruct_traversal(args[0])
+  dmt.reconstruct_traversal(args[0],0)

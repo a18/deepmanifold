@@ -56,18 +56,24 @@ if __name__=='__main__':
   weights=[float(x) for x in config['weights']]
   rbf_var=float(config['rbf_var'])
 
-  with open('dataset/amos_seasons.txt') as f:
+  with open('amos/day_night/amos_daynight.txt') as f:
     L = f.readlines()
-  L = ['images/' + l.strip() for l in L]
+  L = ['images/'+l.strip() for l in L]
 
   source_indices = range(*config['source_range'])
   target_indices = range(*config['target_range'])
-  X = config['test']
+  # pick random source images for test
+  random.seed(123)
+  random.shuffle(source_indices)
+  test_indices=source_indices[:config['test_k']]
+  # ensure test does not appear in source or target
+  source_indices=list(set(source_indices)-set(test_indices))
+  target_indices=list(set(target_indices)-set(test_indices))
 
   everything_else_ipath = []
   source_ipath = [L[i] for i in source_indices]
   target_ipath = [L[i] for i in target_indices]
-  test_ipath = [L[i] for i in X]
+  test_ipath = [L[i] for i in test_indices]
 
   ipath = source_ipath + target_ipath + everything_else_ipath + test_ipath
   N = len(source_ipath)
