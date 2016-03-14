@@ -65,7 +65,7 @@ if __name__=='__main__':
   # pick random source images for test
   random.seed(123)
   random.shuffle(source_indices)
-  test_indices=source_indices[*config['test_range']]
+  test_indices=source_indices[slice(*config['test_range'])]
   # ensure test does not appear in source or target
   source_indices=list(set(source_indices)-set(test_indices))
   target_indices=list(set(target_indices)-set(test_indices))
