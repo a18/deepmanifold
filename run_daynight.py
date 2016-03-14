@@ -74,6 +74,7 @@ if __name__=='__main__':
   source_ipath = [L[i] for i in source_indices]
   target_ipath = [L[i] for i in target_indices]
   test_ipath = [L[i] for i in test_indices]
+  print('test_ipath',test_ipath)
 
   ipath = source_ipath + target_ipath + everything_else_ipath + test_ipath
   N = len(source_ipath)
