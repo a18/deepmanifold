@@ -58,6 +58,7 @@ def ratelimit(n=0,interval=0.0,timefn=time.time,blocking=False,blockingfn=time.s
         count[0]=0
         count[1]=t
         f(*args,**kwds)
+        sys.stdout.flush()
     return c
   return d
 

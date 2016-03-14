@@ -1,0 +1,17 @@
+source_range: [8,2770]
+target_range: [2770,5628]
+test: [7]
+model: vgg
+image_dims: [360,640]
+#image_dims: [54,96] # fast test
+device_id: 0
+#weights: [9e-9, 7e-9, 5e-9, 3e-9, 1e-9] # 640x360, does it work?
+weights: [5e-9] # 640x360
+#weights: [3e-7,1e-7] # 96x54, fast test
+#rbf_var: 7.7e5 # too small
+rbf_var: 1e7 # 640x360
+num_iter: 2000
+hybrid: false
+zscore: true
+traversal_only: true
+reconstruct_only: false
