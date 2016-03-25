@@ -3,8 +3,8 @@ target_range: [2052,3559]
 test_range: [0,1] # first image only
 #test_range: [1,10] # next 9 images
 model: vgg
-image_dims: [600,900]
-#image_dims: [60,90] # fast test
+#image_dims: [600,900]
+image_dims: [60,90] # fast test
 device_id: 0
 #weights: [1e-7] # 1280x720
 weights: [7.0e-8] # 90x60, fast test
@@ -13,5 +13,5 @@ rbf_var: 2.5e+7 # 90x60
 num_iter: 2000
 hybrid: false
 zscore: true
-traversal_only: true
+traversal_only: false
 reconstruct_only: false

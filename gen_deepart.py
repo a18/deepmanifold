@@ -6,6 +6,8 @@ from __future__ import print_function
 
 import numpy
 np=numpy
+import collections
+import threading
 import inspect
 import resource
 import ast
@@ -42,6 +44,7 @@ import measure
 import deepart
 import matchmmd
 import imageutils
+import threadparallel
 
 def ratelimit(n=0,interval=0.0,timefn=time.time,blocking=False,blockingfn=time.sleep):
   def d(f):
@@ -807,15 +810,9 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
   assert len(hybrid_names)==len(hybrid_weights)
 
   # processing
-  result=[]
-  psnr=[]
-  ssim=[]
-  work_units,work_done,work_t0=len(test_indices),0,time.time()
   basename_uid={}
-  for j,i in enumerate(test_indices):
-    if j % subsample: continue
-    np.random.seed(123)
-
+  basename2_lookup={}
+  def create_basename2(j,i):
     if isinstance(dataset,list):
       ipath=original_names[i]
     else:
@@ -826,13 +823,24 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
     else:
       basename_uid[basename]=basename_uid[basename]+1
     basename2='{}-{:02}'.format(basename,basename_uid[basename])
+    basename2_lookup[j]=basename2
+  work_units,work_done,work_t0=len(test_indices),0,time.time()
+  work_done=[work_done]
+  def inner_loop(j,i):
+    net1=net
+    if isinstance(dataset,list):
+      ipath=original_names[i]
+    else:
+      ipath='images/'+original_names[i]
+    basename=os.path.splitext(os.path.split(ipath)[1])[0]
+    basename2=basename2_lookup[j]
 
     # generate target list and target features
     all_target_blob_names=list(hybrid_names)+list(blob_names)
     targets=[]
     target_data_list=[]
     if len(hybrid_weights)>0:
-      F=net.extract_features([ipath],hybrid_names,auto_reshape=True)
+      F=net1.extract_features([ipath],hybrid_names,auto_reshape=True)
       for k,v in zip(hybrid_names,hybrid_weights):
         if len(targets)>0 and targets[-1][3]==v:
           targets[-1][1].append(k)
@@ -858,44 +866,49 @@ def deepart_reconstruct(model='vgg',blob_names=['conv3_1','conv4_1','conv5_1'],b
         print('target',k,v,dataset_shape[k],dataset_F.dtype)
       else:
         print('target',k,v,h5f[k]['DS'][data_indices[j]].shape,h5f[k]['DS'][data_indices[j]].dtype)
-    #target_data_list = gen_target_data(root_dir, caffe, net, targets)
+    #target_data_list = gen_target_data(root_dir, caffe, net1, targets)
 
     # Set initial value and reshape net
     if gaussian_init:
+      np.random.seed(123)
       init_img=np.random.normal(loc=0.5,scale=0.1,size=image_dims+(3,))
     else:
       init_img=caffe.io.load_image(ipath)
-    deepart.set_data(net,init_img)
+    deepart.set_data(net1,init_img)
     #x0=np.ravel(init_img).astype(np.float64)
-    x0=net.get_input_blob().ravel().astype(np.float64)
+    x0=net1.get_input_blob().ravel().astype(np.float64)
     bounds=zip(np.full_like(x0,-128),np.full_like(x0,162))
     solver_type='L-BFGS-B'
     solver_param={'maxiter': max_iter, 'iprint': -1}
-    opt_res=scipy.optimize.minimize(deepart.objective_func,x0,args=(net,all_target_blob_names,targets,target_data_list,tv_lambda,tv_beta),bounds=bounds,method=solver_type,jac=True,options=solver_param)
+    opt_res=scipy.optimize.minimize(deepart.objective_func,x0,args=(net1,all_target_blob_names,targets,target_data_list,tv_lambda,tv_beta),bounds=bounds,method=solver_type,jac=True,options=solver_param)
     #print('opt_res',opt_res)
     #print('opt_res.x',opt_res.x.shape,opt_res.x.dtype)
 
-    data=np.reshape(opt_res.x,net.get_input_blob().shape)[0]
-    deproc_img=net.transformer.deprocess(net.inputs[0],data)
+    data=np.reshape(opt_res.x,net1.get_input_blob().shape)[0]
+    deproc_img=net1.transformer.deprocess(net1.inputs[0],data)
     A=caffe.io.load_image(ipath)
     B=np.clip(deproc_img,0,1)
-    result.append(B)
     A=caffe.io.resize_image(A,B.shape)
 
-    #print('A',A.shape,A.dtype,A.min(),A.max())
-    #print('B',B.shape,B.dtype,B.min(),B.max())
+    psnr=measure.measure_PSNR(A,B,1).mean()
+    ssim=measure.measure_SSIM(A,B,1).mean()
+    with open('{}/results.txt'.format(root_dir),'a') as f:
+      f.write('"{}",{},{},{}\n'.format(basename2,i,psnr,ssim))
+
     skimage.io.imsave('{}/{}-original.png'.format(root_dir,basename),A)
     skimage.io.imsave('{}/{}.png'.format(root_dir,basename2),B)
-    #C=non_local_means('{}/{}.png'.format(root_dir,basename2),3,21,0.04,'{}/{}-nlm.png'.format(root_dir,basename2))
-    caption='psnr {:.4}, ssim {:.4}'.format(measure.measure_PSNR(A,B,1).mean(),measure.measure_SSIM(A,B,1).mean())
+    caption='psnr {:.4}, ssim {:.4}'.format(psnr,ssim)
     subprocess.check_call('convert {root_dir}/{basename}-original.png {root_dir}/{basename2}.png -size {w}x -font Arial-Italic -pointsize 12 caption:{caption} -append {root_dir}/eval_{basename2}.png'.format(root_dir=pipes.quote(root_dir),basename=pipes.quote(basename),basename2=pipes.quote(basename2),ipath=pipes.quote(ipath),caption=pipes.quote(caption),w=A.shape[1],h=A.shape[0]//10),shell=True)
-    psnr.append(measure.measure_PSNR(A,B,1).mean())
-    ssim.append(measure.measure_SSIM(A,B,1).mean())
-    with open('{}/results.txt'.format(root_dir),'a') as f:
-      f.write('"{}",{},{},{}\n'.format(basename2,i,psnr[-1],ssim[-1]))
 
-    work_done=work_done+1*subsample
-    rlprint('{}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
+    work_done[0]=work_done[0]+1*subsample
+    rlprint('{}/{}, {} min remaining'.format(work_done[0],work_units,(work_units/work_done[0]-1)*(time.time()-work_t0)/60.0))
+    return B,psnr,ssim
+
+  S=[(j,i) for j,i in enumerate(test_indices) if (j % subsample)==0]
+  for j,i in S:
+    create_basename2(j,i)
+  xyz=[inner_loop(j,i) for j,i in S]
+  result,psnr,ssim=zip(*xyz)
   if isinstance(dataset,list):
     pass
   else:
