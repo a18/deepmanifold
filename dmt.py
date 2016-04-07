@@ -117,7 +117,7 @@ name of the results directory. result is the transformed images.
   F_shape=data['F_shape'].reshape(-1)[0]
 
   if hybrid:
-    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=hybrid_blob_names,hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
+    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=hybrid_blob_names,hybrid_weights=[0.02]*len(hybrid_blob_names),dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
   else:
     root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
 
@@ -243,7 +243,7 @@ If traversal_only is True:
     return XF,F2,opath
  
   if hybrid:
-    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=hybrid_blob_names,hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
+    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=hybrid_blob_names,hybrid_weights=[0.02]*len(hybrid_blob_names),dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
   else:
     root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
 
