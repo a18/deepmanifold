@@ -54,6 +54,7 @@ blob_names: names of blobs to extract, must be in forward order
     for j,ipath in enumerate(inputs):
       opath=os.path.splitext(ipath)[0]+featext
       with open(opath,'wb') as f:
+        # TODO: take blob_names as an input and build a dict here
         numpy.savez(f,conv3_1=F['conv3_1'][j],conv4_1=F['conv4_1'][j],conv5_1=F['conv5_1'][j])
     work_done=work_done+len(inputs)
     rlprint('extract {}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
@@ -104,6 +105,7 @@ name of the results directory. result is the transformed images.
   weights=list(data['weights'])
   hybrid=bool(data['hybrid'])
   blob_names=list(data['blob_names'])
+  hybrid_blob_names=list(data['hybrid_blob_names'])
   prefix=str(data['prefix'])
   max_iter=str(data['max_iter'])
   test_indices=list(data['test_indices'])
@@ -115,7 +117,7 @@ name of the results directory. result is the transformed images.
   F_shape=data['F_shape'].reshape(-1)[0]
 
   if hybrid:
-    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=['conv1_1','conv2_1'],hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
+    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=hybrid_blob_names,hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
   else:
     root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
 
@@ -134,7 +136,7 @@ name of the results directory. result is the transformed images.
 
   return XF,F2,root_dir,result
 
-def run(ipath,N,M,L,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid,zscore,maxnumlinesearch=25,traversal_only=False):
+def run(ipath,N,M,L,model,image_dims,device_id,weights,rbf_var,prefix,max_iter,hybrid,zscore,maxnumlinesearch=25,traversal_only=False,blob_names=['conv3_1','conv4_1','conv5_1'],hybrid_blob_names=['conv1_1','conv2_1']):
   '''This function will take a list of paths to images and run deep
 manifold traversal. First, features are extracted if needed. Next,
 the manifold traversal of each image is optimized. Lastly, the images
@@ -157,6 +159,8 @@ hybrid: True if you want to the use the layer regularizer
 zscore: True if you want to zscore F
 maxnumlinesearch: Number of conjugate gradient line searches
 traversal_only: Does not perform reconstruction
+blob_names: list of blobs for the manifold traversal
+hybrid_blob_names: list of blobs for the layer regularizer
 
 If traversal_only is False:
 
@@ -180,8 +184,6 @@ If traversal_only is True:
 
   print('{} source, {} target, {} data, {} test'.format(N,M,L,len(X)))
   assert N>0 and M>0 and L>=0 and len(X)>0
-
-  blob_names=['conv3_1','conv4_1','conv5_1']
 
   # extract features
   featext='.{}.{}x{}.npz'.format(model,*image_dims)
@@ -235,13 +237,13 @@ If traversal_only is True:
 
   if traversal_only:
     opath='traversal_{}_{}.npz'.format(int(round(t0)),prefix)
-    with open(opath,'wb') as f: numpy.savez(f,XF=XF,F2=F2,weights=weights,hybrid=hybrid,blob_names=blob_names,prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,X=X,dataset_F=dataset_F,F_slice=F_slice,F_shape=F_shape)
+    with open(opath,'wb') as f: numpy.savez(f,XF=XF,F2=F2,weights=weights,hybrid=hybrid,hybrid_blob_names=hybrid_blob_names,blob_names=blob_names,prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,X=X,dataset_F=dataset_F,F_slice=F_slice,F_shape=F_shape)
     print('Wrote',opath)
     print('{} minutes.'.format((time.time()-t0)/60.0))
     return XF,F2,opath
  
   if hybrid:
-    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=['conv1_1','conv2_1'],hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
+    root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,hybrid_names=hybrid_blob_names,hybrid_weights=[0.02,0.02],dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
   else:
     root_dir,result=deepart_reconstruct(blob_names=blob_names,blob_weights=[1]*len(blob_names),prefix=prefix,max_iter=max_iter,test_indices=test_indices,data_indices=data_indices,image_dims=image_dims,dataset=X,dataset_F=dataset_F,dataset_slice=F_slice,dataset_shape=F_shape,desc=prefix,device_id=device_id)
 
