@@ -18,8 +18,9 @@ weights = [lambda1, lambda2, ...]
 XF,F2,root_dir,result = dmt.run(ipath,N,M,L,'vgg',[125,125],device_id,weights,rbf_var,prefix,3000,False,False)
 ```
 
-The `run_dmt.py` script is a minimal wrapper which demonstrates how to call `dmt.run()`. Look inside `run_dmt.py` for hints on how to set lambda weights and rbf kernel variances.
+The `run_dmt.py` script is a minimal wrapper which demonstrates how to call `dmt.run()`. Look inside `run_dmt.py` for hints on how to set lambda weights and rbf kernel variances. The following command will generate a test image:
 
+`./run_dmt.py --source images/young/*.jpg --target images/old/*.jpg --image images/Aaron_Eckhart_0001.jpg`
 
 #### Updates
 
