@@ -26,7 +26,6 @@ import time
 import subprocess
 import pipes
 
-import caffe.io
 import matchmmd
 import dmt
 from gen_deepart import read_lfw_attributes,attr_pairs,attr_positive,attr_negative,attr_read_named
@@ -100,7 +99,13 @@ if __name__=='__main__':
     #source_indices=attr_read_named(lfwattr,lfwattrname,config['source_attribute'],S)[:config['source_k']]
     #target_indices=attr_read_named(lfwattr,lfwattrname,config['target_attribute'],S)[:config['target_k']]
     print('source',filelist[source_indices[0]])
+    print('source',filelist[source_indices[1]])
+    print('source',filelist[source_indices[2]])
+    print('source',filelist[source_indices[3]])
     print('target',filelist[target_indices[0]])
+    print('target',filelist[target_indices[1]])
+    print('target',filelist[target_indices[2]])
+    print('target',filelist[target_indices[3]])
 
   # test_set is random images not in the P or Q
   indices=sorted(list(set(S)-set(source_indices)-set(target_indices)))
@@ -127,6 +132,6 @@ if __name__=='__main__':
   L=len(ipath3)
   ipath=ipath1+ipath2+ipath3+ipath4
 
-  XF,F2,root_dir,result=dmt.run(ipath,N,M,L,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],False,config['zscore'])
+  XF,F2,root_dir,result=dmt.run(ipath,N,M,L,config['model'],config['image_dims'],config['device_id'],weights,rbf_var,prefix,config['num_iter'],config['hybrid'],config['zscore'],blob_names=config['blob_names'],hybrid_blob_names=config['hybrid_blob_names'])
   with open('{}/config.yaml'.format(root_dir),'w') as f:
     f.write(yaml.dump(config))

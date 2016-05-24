@@ -27,7 +27,9 @@ import time
 import subprocess
 import pipes
 
-import caffe.io
+assert False
+import caffe.io  # broken, don't import caffe
+
 import matchmmd
 import dmt
 from gen_deepart import minibatch

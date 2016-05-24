@@ -29,7 +29,6 @@ import time
 import subprocess
 import pipes
 
-import caffe.io
 import matchmmd
 import dmt
 from gen_deepart import read_lfw_attributes,attr_pairs,attr_positive,attr_negative,attr_read_named

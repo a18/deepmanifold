@@ -54,8 +54,7 @@ blob_names: names of blobs to extract, must be in forward order
     for j,ipath in enumerate(inputs):
       opath=os.path.splitext(ipath)[0]+featext
       with open(opath,'wb') as f:
-        # TODO: take blob_names as an input and build a dict here
-        numpy.savez(f,conv3_1=F['conv3_1'][j],conv4_1=F['conv4_1'][j],conv5_1=F['conv5_1'][j])
+        numpy.savez(f,**dict([(k,F[k][j]) for k in blob_names]))
     work_done=work_done+len(inputs)
     rlprint('extract {}/{}, {} min remaining'.format(work_done,work_units,(work_units/work_done-1)*(time.time()-work_t0)/60.0))
 

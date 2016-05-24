@@ -45,6 +45,7 @@ import deepart
 import matchmmd
 import imageutils
 import threadparallel
+import models
 
 def ratelimit(n=0,interval=0.0,timefn=time.time,blocking=False,blockingfn=time.sleep):
   def d(f):
@@ -123,21 +124,20 @@ def setup_classifier(model='vgg',image_dims=(224,224),device_id=0):
     #image_dims = (1014//2, 1280//2)
     #mean = (104, 117, 123)
 
-    if model=='vgg':
-        deployfile_relpath = 'models/VGG_CNN_19/VGG_ILSVRC_19_layers_deploy_fullconv.prototxt'
-        weights_relpath = 'models/VGG_CNN_19/vgg_normalised.caffemodel'
-        mean = (103.939, 116.779, 123.68)
-    elif model=='vggface':
-        deployfile_relpath = 'models/vgg_face_caffe/VGG_FACE_deploy_conv.prototxt'
-        weights_relpath = 'models/vgg_face_caffe/VGG_FACE.caffemodel'
-        mean = (93.5940, 104.7624, 129.1863)
+    if model in models.modeldef:
+        import_caffe = models.modeldef[model]['import_caffe']
+        extractor = models.modeldef[model]['extractor']
+        deployfile_relpath = models.modeldef[model]['deployfile_relpath']
+        weights_relpath = models.modeldef[model]['weights_relpath']
+        mean = models.modeldef[model]['mean']
     else:
         raise ValueError('Unknown CNN model:',model)
+
     input_scale = 1.0
 
     caffe, net = load_fet_extractor(
-        deployfile_relpath, weights_relpath, image_dims, mean, device_id,
-        input_scale
+        import_caffe, extractor, deployfile_relpath, weights_relpath,
+        image_dims, mean, device_id, input_scale
     )
 
     return caffe, net, image_dims

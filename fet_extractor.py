@@ -5,47 +5,6 @@ import numpy as np
 import settings
 from utils import add_caffe_to_path
 
-
-def load_fet_extractor(
-    deployfile_relpath,
-    weights_relpath,
-    image_dims=(256, 256),
-    mean=(104, 117, 123),
-    device_id=0,
-    input_scale=1,
-):
-    add_caffe_to_path()
-    import caffe
-
-    FeatureExtractor = def_FeatureExtractor(caffe)
-
-    mean = np.array(mean)
-
-    model_file = os.path.join(settings.CAFFE_ROOT, deployfile_relpath)
-    pretrained_file = os.path.join(settings.CAFFE_ROOT, weights_relpath)
-
-    if settings.CAFFE_GPU:
-        print 'Using GPU'
-        caffe.set_mode_gpu()
-        print 'Using device #{}'.format(device_id)
-        caffe.set_device(device_id)
-    else:
-        print 'Using CPU'
-        caffe.set_mode_cpu()
-
-    net = FeatureExtractor(
-        model_file=model_file,
-        pretrained_file=pretrained_file,
-        image_dims=image_dims,
-        mean=mean,
-        input_scale=input_scale,
-        raw_scale=255,
-        channel_swap=(2, 1, 0),
-    )
-
-    return caffe, net
-
-
 def def_FeatureExtractor(caffe):
     class FeatureExtractor(caffe.Net):
         """
@@ -167,3 +126,45 @@ def def_FeatureExtractor(caffe):
             return self.blobs[in_].data.copy()
 
     return FeatureExtractor
+
+
+def load_fet_extractor(
+    import_caffe,
+    extractor,
+    deployfile_relpath,
+    weights_relpath,
+    image_dims=(256, 256),
+    mean=(104, 117, 123),
+    device_id=0,
+    input_scale=1,
+):
+    caffe=import_caffe()
+
+    FeatureExtractor = extractor(caffe)
+
+    mean = np.array(mean)
+
+    model_file = os.path.join(settings.CAFFE_ROOT, deployfile_relpath)
+    pretrained_file = os.path.join(settings.CAFFE_ROOT, weights_relpath)
+
+    if settings.CAFFE_GPU:
+        print 'Using GPU'
+        caffe.set_mode_gpu()
+        print 'Using device #{}'.format(device_id)
+        caffe.set_device(device_id)
+    else:
+        print 'Using CPU'
+        caffe.set_mode_cpu()
+
+    net = FeatureExtractor(
+        model_file=model_file,
+        pretrained_file=pretrained_file,
+        image_dims=image_dims,
+        mean=mean,
+        input_scale=input_scale,
+        raw_scale=255,
+        channel_swap=(2, 1, 0),
+    )
+
+    return caffe, net
+

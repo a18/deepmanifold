@@ -27,7 +27,6 @@ import time
 import subprocess
 import pipes
 
-import caffe.io
 import matchmmd
 import dmt
 from gen_deepart import minibatch

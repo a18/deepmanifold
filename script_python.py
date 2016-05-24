@@ -33,9 +33,6 @@ import matplotlib.pyplot
 import totalvariation
 import threadparallel
 
-from fet_extractor import load_fet_extractor
-from deepart import gen_target_data, optimize_img
-from test_deepart import test_all_gradients
 import measure
 import deepart
 import matchmmd
