@@ -26,6 +26,10 @@ XF,F2,root_dir,result = dmt.run(ipath,N,M,L,'vgg',[125,125],device_id,weights,rb
 
 The `run_dmt.py` script is a minimal wrapper which demonstrates how to call `dmt.run()`. Look inside `run_dmt.py` for hints on how to set lambda weights and rbf kernel variances. 
 
+#### How to process large images
+
+We found the limit to be main memory. Amazon EC2 offers CPU machines with 244 GB of memory which is enough to process 900 x 600 images. You can optimize the manifold traversal equation there, then transfer the results to a GPU machine for the reconstruction optimization. See the `run_daynight.py` script for an example of how we do this.
+
 #### Updates
 
 The old `gen_deepart.py` methods (2015 November) are now deprecated. The new `dmt.py` (2016 March) is faster and uses less memory.
