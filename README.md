@@ -8,7 +8,7 @@ See http://arxiv.org/abs/1511.06421 for an explanation of the method.
 
 #### Try it out
 
-Run `./scripts/install/install_all.sh` to install. This will install python dependencies, download caffe, compile caffe, and download the necessary weight file. It is assumed that caffe lives at `../caffe` and it will not be downloaded if it already exists.
+Run `./scripts/install/install_all.sh` to install. This will install python dependencies, download caffe, compile caffe, and download the necessary weight file. It is assumed that caffe lives at `../caffe` and it will not be downloaded if it already exists. You may also need: `sudo apt-get install imagemagick`.
 
 The following command will generate a test image:
 
