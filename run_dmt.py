@@ -54,7 +54,7 @@ if __name__=='__main__':
   image_dims=[250,250]
   device_id=0
 
-  weights=[5e-8]
+  weights=[1e-7]
 
   # HOWTO set weights: Use grid search. The result you want (smallest
   # change that is perceivable) will probably be between one and zero.
