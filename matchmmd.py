@@ -12,6 +12,7 @@ import time
 import threading
 import minimize
 import threadparallel
+import math
 
 def witness_fn(r,x,P,Q,rbf_var,weight):
   # r is D dim
@@ -166,10 +167,33 @@ def witness_fn3(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf):
   assert grad.shape==r.shape
   return loss,grad
 
+def witness_fn3_KQ(r,x,FFT,BQ,CQ,N,M,L,rbf_var):
+  # K is N+M+L+1
+  # r is K dim, indicator vector
+  # x is K dim, indicator vector
+  # F is K x D, latent space vectors
+  # FFT is F F^T
+  K=N+M+L+1
+  assert r.shape==(K,)
+  assert x.shape==(K,)
+  assert FFT.shape==(K,K)
+
+  Q=np.concatenate([np.zeros((M,N)),np.eye(M,M+L+1)],axis=1)
+
+  xpr=x+r
+  Z=(-1.0/(2*rbf_var))
+  FFTxpr=FFT.dot(xpr.T)
+  xprFFTxpr=xpr.dot(FFTxpr)
+  eQ=Z*(xprFFTxpr+CQ-2.0*xpr.dot(BQ))
+
+  KQ=np.exp(eQ)
+
+  return KQ
+
 def zscore_F(F):
   # in place, zero copy
   # F is K x D
-  print('F',F.shape,F.dtype,F.min(),F.max())
+  #print('F',F.shape,F.dtype,F.min(),F.max())
   assert F.ndim==2
   loc=F.mean(axis=0)
   sigma=np.empty_like(loc)
@@ -181,13 +205,13 @@ def zscore_F(F):
   F/=sigma.reshape(1,-1)
   return loc,sigma
 
-def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True,maxnumlinesearch=25):
+def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,checkgrad=True,checkrbf=True,maxnumlinesearch=25,initialize_KQ=None):
   # returns two arrays, xpr and r
   #   xpr is optimized x+r
   #   r is optimized r
   # multiply by F to get latent space vector
   if verbose:
-    print('manifold_traversal()')
+    print('manifold_traversal2()')
     print('FFT',FFT.shape,FFT.dtype,FFT.min(),FFT.max())
     print('N',N)
     print('M',M)
@@ -207,21 +231,35 @@ def manifold_traversal2(FFT,N,M,L,weights,max_iter=5,rbf_var=1e4,verbose=False,c
   BQ=FFT[:,N:N+M] # FFT.dot(Q.T) # K x M
   CP=np.array([FFT[i,i] for i in range(N)]) # np.array([P[i].dot(FFT).dot(P[i].T) for i in range(N)])
   CQ=np.array([FFT[N+i,N+i] for i in range(M)]) # np.array([Q[i].dot(FFT).dot(Q[i].T) for i in range(M)])
+
+  if not initialize_KQ is None:
+    assert initialize_KQ>0 and initialize_KQ<1
+    KQ=witness_fn3_KQ(r,x,FFT,BQ,CQ,N,M,L,rbf_var)
+    rbf_var*=math.log(KQ.mean())/math.log(initialize_KQ)
+    if verbose:
+      print('Setting sigma^2 = {}'.format(rbf_var))
+
   for weight in weights:
 
-    if checkgrad:
+    if checkgrad and weight==weights[0]:
       def f(*args):
         return witness_fn3(*args)[0]
       def g(*args):
         return witness_fn3(*args)[1]
       print('Checking gradient ...')
-      #err=scipy.optimize.check_grad(f,g,r,*(x,FFT,N,M,L,rbf_var,weight,False,True))
-      err=scipy.optimize.check_grad(f,g,r,*(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True))
-      print('gradient error',err)
-      assert err<1e-5
+      est_grad=scipy.optimize.approx_fprime(r,f,math.sqrt(np.finfo(float).eps),*(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,False))
+      #print('est. gradient',est_grad)
+      fn_grad=g(r,x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,True)
+      #print('gradient',fn_grad)
+      #print('isclose',np.isclose(est_grad,fn_grad,rtol=1e-4,atol=1e-7))
+      assert np.allclose(est_grad,fn_grad,rtol=1e-4,atol=1e-5)
+      #err=scipy.optimize.check_grad(f,g,r,*(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,False,False))
+      #print('gradient error',err)
+      #assert err<1e-5
+      print('passed.')
 
     t0=time.time()
-    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=maxnumlinesearch,maxnumfuneval=None,red=1.0,verbose=True)
+    r_opt,loss_opt,iter_opt=minimize.minimize(r,witness_fn3,(x,FFT,BP,BQ,CP,CQ,N,M,L,rbf_var,weight,verbose,checkrbf),maxnumlinesearch=maxnumlinesearch,maxnumfuneval=None,red=1.0,verbose=False)
     t1=time.time()
     if verbose:
       #print('r_opt',r_opt.shape,r_opt.dtype)

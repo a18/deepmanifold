@@ -174,11 +174,14 @@ def invert_model(filelist,targetlist,model,image_dims=None,max_iter=3000,hybrid_
 if __name__=='__main__':
   filelist=['images/lfw/Aaron_Eckhart/Aaron_Eckhart_0001.jpg']
   targetlist=[
-    ('c3c4c5',['conv3_1','conv4_1','conv5_1'],[1,1,1]),
+    #('c3c4c5',['conv3_1','conv4_1','conv5_1'],[1,1,1]),
+    ('c3',['conv3_1'],[1]),
+    ('c4',['conv4_1'],[1]),
+    ('c5',['conv5_1'],[1]),
   ]
-  model='vgg'
-  root_dir,result=invert_model(filelist,targetlist,model,image_dims=[100,100],max_iter=3000,tv_lambda=0.001,tv_beta=2,desc='invert',device_id=0)
-  original=np.asarray([skimage.io.imread(x)/255.0 for x in filelist*len(targetlist)])
-  m=np.asarray([original,result])
-  skimage.io.imsave('{}/montage.png'.format(root_dir),imageutils.montage(m))
+  for model in ['vgg','vggface']:
+    root_dir,result=invert_model(filelist,targetlist,model,image_dims=[100,100],max_iter=3000,tv_lambda=0.001,tv_beta=2,desc='invert_{}'.format(model),device_id=0)
+    original=np.asarray([skimage.io.imread(x)/255.0 for x in filelist*len(targetlist)])
+    m=np.asarray([original,result])
+    skimage.io.imsave('{}/montage.png'.format(root_dir),imageutils.montage(m))
 

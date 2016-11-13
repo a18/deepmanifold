@@ -100,9 +100,12 @@ def def_FeatureExtractor(caffe):
                 inputs = [filename]
             else:
                 inputs = [caffe.io.load_image(filename)]
+            # Each member of inputs is H x W x 3 in the range [0,1]
 
+            #print 'inputs[0].shape',inputs[0].shape, inputs[0].min(), inputs[0].mean(), inputs[0].max()
             caffe_in = self.preprocess_inputs(inputs, auto_reshape=auto_reshape)
-            #print 'caffe_in', caffe_in.shape
+            # caffe_in is N x 3 x H x W in the range [-lo,+hi] where lo,hi are ~ -100,+100
+            #print 'caffe_in', caffe_in.shape, caffe_in.min(), caffe_in.mean(), caffe_in.max()
             return self.forward_all(**{self.inputs[0]: caffe_in})
 
         def extract_features(self, filename, blob_names, auto_reshape=True):

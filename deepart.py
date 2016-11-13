@@ -174,6 +174,70 @@ def objective_func(x, net, all_target_blob_names, targets, target_data_list, tv_
     else:
         return loss, np.ravel(get_data_blob(net).diff).astype(np.float64)
 
+def objective_func2(x, net, blob_names, target, target_data, tv_lambda, tv_beta):
+    '''
+    blob_names is a list of all blobs sorted front-to-back
+    target and target_data are dicts of blob names
+    target[blob name] is a list of 3-tuples (weight, target type, data index)
+      weight is a scalar
+      target type is 'gram' or 'l2'
+      data index is a zero-based index into the target tensor
+    target_data[blob name] is a tensor (image x channel x height x width)
+    tv_lambda and tv_beta are scalars for the total variation regularizer
+    '''
+
+    # Makes one iteration step and updates the gradient of the data blob
+
+    get_data_blob(net).data[...] = np.reshape(x, get_data_blob(net).data.shape)
+    get_data_blob(net).diff[...] = 0
+    net.forward()
+
+    loss = 0
+    # Go through target blobs in reversed order
+    for i in range(len(blob_names)):
+        blob_i = len(blob_names) - 1 - i
+        start = blob_names[blob_i]
+
+        if blob_i == 0:
+            end = None
+        else:
+            end = blob_names[blob_i - 1]
+
+        # Get target blob
+        target_blob = net.blobs[start]
+        if i == 0:
+            target_blob.diff[...] = 0
+        gen_data = target_blob.data.copy()
+
+        # Apply RELU
+        pos_mask = gen_data > 0
+        gen_data[~pos_mask] = 0
+
+        # Accumulate objectives
+        target_blob_add_diff = np.zeros_like(target_blob.diff, dtype=np.float64)
+        for (weight, target_type, data_i) in target[start]:
+            if target_type=='gram':
+                c_loss, c_grad = style_grad(gen_data, target_data[start][data_i])
+            elif target_type=='l2':
+                c_loss, c_grad = content_grad(gen_data, target_data[start][data_i])
+            else:
+                raise ValueError('Unknown target type: {}'.format(target_type))
+
+            # Apply RELU
+            c_grad[~pos_mask] = 0
+            target_blob_add_diff += c_grad * weight
+            loss += c_loss * weight
+
+        # Update model
+        target_blob.diff[...] += target_blob_add_diff
+        net.backward(start=start, end=end)
+
+    if tv_lambda > 0:
+        tv_loss, tv_grad = totalvariation.tv_norm(x.reshape(get_data_blob(net).data.shape), beta=tv_beta)
+        return loss + tv_loss * tv_lambda, np.ravel(get_data_blob(net).diff).astype(np.float64) + np.ravel(tv_grad) * tv_lambda
+    else:
+        return loss, np.ravel(get_data_blob(net).diff).astype(np.float64)
+
 
 def get_data_blob(net):
     return net.blobs[net.inputs[0]]
@@ -205,7 +269,7 @@ class DisplayFunctor():
 
 
 def optimize_img(init_img, solver_type, solver_param, max_iter, display, root_dir, net,
-                 all_target_blob_names, targets, target_data_list):
+                 all_target_blob_names, targets, target_data_list, tv_lambda=0.001):
     ensuredir(root_dir)
 
     solver_param.update({
@@ -223,7 +287,6 @@ def optimize_img(init_img, solver_type, solver_param, max_iter, display, root_di
     bounds = zip(mins, maxs)
     display_func = DisplayFunctor(net, root_dir, display)
 
-    tv_lambda = 0.001
     tv_beta = 2
     opt_res = optimize.minimize(
         objective_func,

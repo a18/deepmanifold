@@ -143,10 +143,10 @@ def setup_classifier(model='vgg',image_dims=(224,224),device_id=0):
     return caffe, net, image_dims
 
 
-def run_deepart(ipath1='images/starry_night.jpg',ipath2='images/tuebingen.jpg',max_iter=2000):
+def run_deepart(ipath1='images/starry_night.jpg',ipath2='images/tuebingen.jpg',max_iter=2000,desc='gatys'):
     np.random.seed(123)
 
-    root_dir = 'results_{}'.format(int(round(time.time())))
+    root_dir = 'results_{}_{}'.format(int(round(time.time())),desc)
     if not os.path.exists(root_dir):
         os.makedirs(root_dir)
     display = 100
@@ -157,20 +157,14 @@ def run_deepart(ipath1='images/starry_night.jpg',ipath2='images/tuebingen.jpg',m
     #     whether we use style (gram) or content loss,
     #     weighting factor
     # )
-#    targets = [
-#        (ipath1, ['conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', 'conv5_1'], True, 1),
-#        (ipath2, ['conv4_2'], False, 1),
-#    ]
-#    targets = [
-#        (ipath1, ['conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', 'conv4_2', 'conv5_1'], False, 1),
-#    ]
     targets = [
-        (ipath1, ['conv5_1'], False, 1),
+        (ipath1, ['conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', 'conv5_1'], True, 100),
+        (ipath2, ['conv4_2'], False, 1),
     ]
     # These have to be in the same order as in the network!
     all_target_blob_names = ['conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', 'conv4_2', 'conv5_1']
 
-    caffe, net, image_dims = setup_classifier()
+    caffe, net, image_dims = setup_classifier(image_dims=(375,500))
 
     A=caffe.io.load_image(args[0])
     B=net.preprocess_inputs([A],auto_reshape=True)
@@ -195,7 +189,7 @@ def run_deepart(ipath1='images/starry_night.jpg',ipath2='images/tuebingen.jpg',m
 
     Chat=optimize_img(
         init_img, solver_type, solver_param, max_iter, display, root_dir, net,
-        all_target_blob_names, targets, target_data_list
+        all_target_blob_names, targets, target_data_list, tv_lambda = 0.1
     )
     Dhat=caffe.io.resize_image(Chat,A.shape)
     print('best psnr = {:.4}, ssim = {:.4}'.format(measure.measure_PSNR(A,D,1).mean(),measure.measure_SSIM(A,D,1).mean()))
@@ -248,7 +242,7 @@ def plot_horizontal_bars(X,Y,xlabel,ylabel,title):
   matplotlib.pyplot.title(title)
   matplotlib.pyplot.tight_layout()
 
-def deepart_examine(model='vgg',image_dims=None,device_id=0,max_iter=3000,hybrid_names=[],hybrid_weights=[],tv_lambda=0.001,tv_beta=2,desc='identity',dataset='lfw_random',count=20,layers=None):
+def deepart_examine(model='vgg',image_dims=None,device_id=0,max_iter=3000,tv_lambda=0.001,tv_beta=2,desc='identity',dataset='lfw_random',count=20,layers=None):
   t0=time.time()
 
   caffe,net,image_dims=setup_classifier(model=model,image_dims=image_dims,device_id=device_id)
@@ -1167,7 +1161,8 @@ def deepart_compare(inputs,name='compare'):
 if __name__ == '__main__':
   args=sys.argv[1:]
 
-  #run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]))
+  run_deepart(ipath1=args[0],ipath2=args[1],max_iter=int(args[2]),desc=args[3])
+  sys.exit(0)
   if args[0]=='identity':
     args=args[1:]
     image_dims=None
